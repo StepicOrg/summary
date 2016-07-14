@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Summary</title>
+</head>
+    <body>
+        <div>
+            {% for img in imgs %}
+                <img src="img/{{img}}">
+            {% endfor %}
+        </div>
+    </body>
+</html>
+
+<style>
+    div {
+        margin: auto;
+        text-align: center;
+    }
+    img {
+        display: inline-block;
+        width: 50%;
+        margin: 20px;
+        border:1px solid black;
+    }
+</style>
