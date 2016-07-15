@@ -1,8 +1,8 @@
 import os
 
 
-def mkdir_and_cd(filename):
-    dir_name = os.path.join(os.getcwd(), os.path.splitext(filename)[0] + '_frames')
+def mkdir_and_cd(filename, suffix):
+    dir_name = os.path.join(os.getcwd(),'{}_{}'.format(os.path.splitext(filename)[0], suffix))
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
     os.chdir(dir_name)

@@ -60,7 +60,7 @@ class Summary:
         self.peaks = []
         self.humans = []
 
-        mkdir_and_cd(args[1])
+        mkdir_and_cd(args[1], 'frames')
 
     def compute_diffs(self):
         old_frame = self._get_next_frame()
