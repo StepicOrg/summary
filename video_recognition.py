@@ -1,26 +1,18 @@
 import sys
 import os
 import cv2
-import django
 import matplotlib.pyplot as plt
-from django.template.loader import get_template
 
 from utills import mkdir_and_cd, Shape, Human
 from constants import (EVERY_Nth_FRAME, BOTTOM_LINE_COEF, TIME_BETWEEN_KEYFRAMES, THRESHOLD_FOR_PEAKS_DETECTION,
-                       MAX_KEYFRAME_PER_SEC, SUMMARY_FILENAME, SUMMARY_TEMPLATE, THRESHOLD_DELTA, SCALE_FACTOR,
+                       MAX_KEYFRAME_PER_SEC, THRESHOLD_DELTA, SCALE_FACTOR,
                        MIN_SIZE_COEF, CENTER_LEFT_BORDER, CENTER_RIGHT_BORDER, PATH_FOR_IMGS, IMG_NAME_TEMPLATE,
                        DIFFS_PNG_NAME)
 import numpy as np
 import peakutils
-import pickle
-
-from django.template import Context
-from django.conf import settings
-settings.configure(TEMPLATE_DIRS=('../templates',))
-django.setup()
 
 
-class Summary:
+class VideoRecognition:
     cap = None
     cascade = None
     num_of_frames = None
@@ -60,7 +52,7 @@ class Summary:
         self.peaks = []
         self.humans = []
 
-        mkdir_and_cd(args[1], 'frames')
+        mkdir_and_cd(args[1], 'summary')
 
     def compute_diffs(self):
         old_frame = self._get_next_frame()
@@ -174,7 +166,7 @@ class Summary:
 
         i = 0
         peaks_ptr = 0
-        peaks_names = []
+        keyframes_with_timestamp = []
         frames_buffer = [0] * int(self.fps * 1)
         frames_buffer_ptr = 0
         while self.cap.isOpened() and peaks_ptr < len(self.peaks):
@@ -186,17 +178,13 @@ class Summary:
             frames_buffer_ptr %= len(frames_buffer)
             if i == self.peaks[peaks_ptr] * EVERY_Nth_FRAME:
                 name = IMG_NAME_TEMPLATE.format(number=i)
-                peaks_names.append(name)
+                keyframes_with_timestamp.append([name, i / self.fps])
                 ind_in_buffer = (frames_buffer_ptr + len(frames_buffer)) % len(frames_buffer)
                 cv2.imwrite(name, frames_buffer[ind_in_buffer])
                 peaks_ptr += 1
             i += 1
         os.chdir(old_dir)
-        with open(SUMMARY_FILENAME, 'w') as file:
-            t = get_template(SUMMARY_TEMPLATE)
-            c = Context({'imgs': peaks_names})
-            html = t.render(c)
-            file.write(html)
+        return keyframes_with_timestamp
 
     def plot_graphs(self):
         fig = plt.figure()
@@ -211,9 +199,7 @@ class Summary:
                  self.peaks, [max(self.diffs) / 2] * len(self.peaks), 'g^')
         fig.savefig(DIFFS_PNG_NAME)
 
-
-s = Summary(sys.argv)
-
+'''
 try:
     with open('diffs', 'rb') as f:
         s.diffs = pickle.load(f)
@@ -226,7 +212,4 @@ except FileNotFoundError:
         pickle.dump(s.diffs, f)
     with open('humans', 'wb') as f:
         pickle.dump(s.humans, f)
-
-s.find_peaks()
-s.plot_graphs()
-s.crate_summary()
+'''

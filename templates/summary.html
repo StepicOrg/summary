@@ -6,8 +6,12 @@
 </head>
     <body>
         <div>
-            {% for img in imgs %}
-                <img src="img/{{img}}">
+            {% for item in content %}
+                {% if item.0 == 1 %}
+                    <img src="{{ item.1 }}">
+                {% elif item.0 == 2 %}
+                    <p>{{ item.1 }}</p>
+                {% endif %}
             {% endfor %}
         </div>
     </body>
@@ -23,5 +27,10 @@
         width: 50%;
         margin: 20px;
         border:1px solid black;
+    }
+    p {
+        margin: auto;
+        width: 50%;
+        text-align: left;
     }
 </style>
