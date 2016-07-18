@@ -198,18 +198,3 @@ class VideoRecognition:
                  xs_h, humans, 'r-',
                  self.peaks, [max(self.diffs) / 2] * len(self.peaks), 'g^')
         fig.savefig(DIFFS_PNG_NAME)
-
-'''
-try:
-    with open('diffs', 'rb') as f:
-        s.diffs = pickle.load(f)
-        s.bottom_line = float(np.mean(s.diffs) * BOTTOM_LINE_COEF)
-    with open('humans', 'rb') as f:
-        s.humans = pickle.load(f)
-except FileNotFoundError:
-    s.compute_diffs()
-    with open('diffs', 'wb') as f:
-        pickle.dump(s.diffs, f)
-    with open('humans', 'wb') as f:
-        pickle.dump(s.humans, f)
-'''
