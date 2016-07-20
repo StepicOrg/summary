@@ -54,8 +54,8 @@ def make_summary(keyframes, recognized_audio):
     is_text = 2
 
     last_time = 0
-    for i in range(len(keyframes)):
-        last_time, keyframes[i][1] = keyframes[i][1], last_time
+    for keyframe in keyframes:
+        last_time, keyframe[1] = keyframe[1], last_time
 
     while frames_ptr < len(keyframes) and audio_ptr < len(recognized_audio):
         if keyframes[frames_ptr][1] <= recognized_audio[audio_ptr][0]:
