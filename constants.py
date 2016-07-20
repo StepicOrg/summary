@@ -21,3 +21,17 @@ PATH_FOR_IMGS = 'img'
 IMG_NAME_TEMPLATE = '{number}.png'
 
 DIFFS_PNG_NAME = 'diffs.png'
+
+# YandexSpeechKit
+from secret import KEY, UUID
+
+URL = 'https://asr.yandex.net/asr_xml'
+TOPIC = 'notes'
+LANG = 'ru-RU'
+REQUEST_URL = '{url}?uuid={UUID}&key={key}&topic={topic}&lang={lang}'.format(url=URL,
+                                                                             UUID=UUID,
+                                                                             key=KEY,
+                                                                             topic=TOPIC,
+                                                                             lang=LANG)
+
+FFMPEG_EXTRACT_AUDIO = "ffmpeg -y -i {input_video} -ab 160k -ac 2 -ar 44100 -vn {output_audio}.wav"
