@@ -7,8 +7,8 @@ Autogenerating summary from video course
 
 - copy your test.mp4 into `summary` folder
 
-- ```
-cd summary
-python3 main.py test.mp4 HS.xml
 
-- check `test_frames` folder
+-   - `cd summary`
+    - `python3 make_summary.py test.mp4 HS.xml`
+
+- check `test_summary` folder

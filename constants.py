@@ -33,3 +33,5 @@ REQUEST_URL = '{url}?uuid={UUID}&key={key}&topic={topic}&lang={lang}'.format(url
                                                                              key=KEY,
                                                                              topic=TOPIC,
                                                                              lang=LANG)
+
+FFMPEG_EXTRACT_AUDIO = "ffmpeg -y -i {input_video} -ab 160k -ac 2 -ar 44100 -vn {output_audio}.wav"

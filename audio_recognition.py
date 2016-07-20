@@ -1,13 +1,15 @@
+import os
+
 from pydub import AudioSegment
 import math
 import requests
 import xml.etree.ElementTree as ET
 
 from constants import REQUEST_URL
-from utills import mkdir_and_cd
+from utils import mkdir_and_cd
 
 
-class VoiceRecognition:
+class AudioRecognition:
     file_name = None
     _audio_segment = None
 
@@ -16,10 +18,12 @@ class VoiceRecognition:
         self._audio_segment = AudioSegment.from_file(file_name)
 
     def recognize(self):
+        old_dir = os.getcwd()
         mkdir_and_cd(self.file_name, 'audio_chunks')
         audio_chunks = self._split_to_chunks()
         audio_chunk_names = self._save_audio_chunks(audio_chunks)
         recognized_audio = self._recognize_chunks(audio_chunk_names)
+        os.chdir(old_dir)
         return recognized_audio
 
     def _split_to_chunks(self):
