@@ -6,7 +6,7 @@ import requests
 import xml.etree.ElementTree as ET
 
 from constants import REQUEST_URL
-from utills import mkdir_and_cd
+from utils import mkdir_and_cd
 
 
 class AudioRecognition:

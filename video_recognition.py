@@ -3,7 +3,7 @@ import os
 import cv2
 import matplotlib.pyplot as plt
 
-from utills import mkdir_and_cd, Shape, Human
+from utils import mkdir_and_cd, Shape, Human
 from constants import (EVERY_Nth_FRAME, BOTTOM_LINE_COEF, TIME_BETWEEN_KEYFRAMES, THRESHOLD_FOR_PEAKS_DETECTION,
                        MAX_KEYFRAME_PER_SEC, THRESHOLD_DELTA, SCALE_FACTOR,
                        MIN_SIZE_COEF, CENTER_LEFT_BORDER, CENTER_RIGHT_BORDER, PATH_FOR_IMGS, IMG_NAME_TEMPLATE,

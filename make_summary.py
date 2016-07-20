@@ -3,7 +3,7 @@ import sys
 import subprocess
 
 from constants import FFMPEG_EXTRACT_AUDIO, BOTTOM_LINE_COEF
-from utills import make_summary
+from utils import make_summary
 from video_recognition import VideoRecognition as VR
 from audio_recognition import AudioRecognition as AR
 
