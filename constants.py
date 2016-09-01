@@ -33,3 +33,5 @@ VIDEOS_DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 
 IS_FRAME = 'img'
 IS_TEXT = 'text'
+
+STEPIK_BASE_URL = 'https://stepik.org'

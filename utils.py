@@ -2,13 +2,12 @@ import os
 import logging
 import tempfile
 import argparse
-import json
 import requests
 import subprocess
 
 from recognize import VideoRecognition, AudioRecognition
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
-                       IS_FRAME, IS_TEXT)
+                       IS_FRAME, IS_TEXT, STEPIK_BASE_URL)
 from exceptions import CreateSynopsisError
 
 logger = logging.getLogger(__name__)
@@ -74,14 +73,24 @@ def parse_arguments():
 
 
 def get_lesson_page(lesson_id, token):
-    return json.loads(requests.get('http://stepic.org/api/lessons/{id}'.format(id=lesson_id),
-        headers={'Authorization': 'Bearer ' + token}).text)
+    resp = requests.get('{base_url}/api/lessons/{id}'.format(base_url=STEPIK_BASE_URL,
+                                                             id=lesson_id),
+                        headers={'Authorization': 'Bearer {}'.format(token)})
+    if resp.status_code != 200:
+        raise CreateSynopsisError('Filed to get lessons page from stepik, status code = {status_code}'
+                                  .format(status_code=resp.status_code))
+    return resp.json()
 
 
 def get_step_block(step_id, token):
-    resp = json.loads(requests.get('https://stepic.org/api/steps/' + str(step_id),
-                                       headers={'Authorization': 'Bearer ' + token}).text)
-    return resp['steps'][0]['block']
+    resp = requests.get('{base_url}/api/steps/{id}'.format(base_url=STEPIK_BASE_URL,
+                                                           id=step_id),
+                        headers={'Authorization': 'Bearer {}'.format(token)})
+    if resp.status_code != 200:
+        raise CreateSynopsisError('Filed to get steps page from stepik, status code = {status_code}'
+                                  .format(status_code=resp.status_code))
+    else:
+        return resp.json()['steps'][0]['block']
 
 
 def make_synopsis_from_video(video, upload_care_pub_key, yandex_speeck_kit_key):
@@ -97,7 +106,6 @@ def make_synopsis_from_video(video, upload_care_pub_key, yandex_speeck_kit_key):
             for chunk in response.iter_content(VIDEOS_DOWNLOAD_CHUNK_SIZE):
                 size += f.write(chunk)
                 if size > VIDEOS_DOWNLOAD_MAX_SIZE:
-                    print(size)
                     raise CreateSynopsisError('Failed to download video, too big video file, id = {id}'
                                               .format(id=video['id']))
 
@@ -107,7 +115,7 @@ def make_synopsis_from_video(video, upload_care_pub_key, yandex_speeck_kit_key):
             if not run_shell_command(command):
                 raise CreateSynopsisError(command)
 
-            ar = AudioRecognition(tmpdir, out_audio, yandex_speeck_kit_key)
+            ar = AudioRecognition(out_audio, yandex_speeck_kit_key)
             recognized_audio = ar.recognize()
 
             vr = VideoRecognition(videofile, upload_care_pub_key)
@@ -118,7 +126,7 @@ def make_synopsis_from_video(video, upload_care_pub_key, yandex_speeck_kit_key):
 
             return content
 
-    
+
 def run_shell_command(command, timeout=4):
     try:
         exitcode = subprocess.call(command, shell=True, timeout=timeout)

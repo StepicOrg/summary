@@ -1,22 +1,20 @@
+import io
 import logging
 import math
-import os
-import tempfile
-import cv2
 from xml.etree import ElementTree
 
+import cv2
 import numpy as np
 import peakutils
 import requests
 from pydub import AudioSegment
 
 from constants import (TIME_BETWEEN_KEYFRAMES, FRAME_PERIOD, BOTTOM_LINE_COEF, SCALE_FACTOR,
-                        THRESHOLD_FOR_PEAKS_DETECTION, MAX_KEYFRAME_PER_SEC, THRESHOLD_DELTA,
-                        MIN_SIZE_COEF, CENTER_LEFT_BORDER, IMG_NAME_TEMPLATE, CENTER_RIGHT_BORDER,
-                        UPLOADCARE_URL_TO_UPLOAD, MS_IN_SEC, AUDIO_IS_NOT_RECOGNIZED, SEC_IN_MIN,
-                        RECOGNIZE_TEXT_TEMPLATE, YANDEX_SPEECH_KIT_REQUEST_URL)
+                       THRESHOLD_FOR_PEAKS_DETECTION, MAX_KEYFRAME_PER_SEC, THRESHOLD_DELTA,
+                       MIN_SIZE_COEF, CENTER_LEFT_BORDER, CENTER_RIGHT_BORDER,
+                       UPLOADCARE_URL_TO_UPLOAD, MS_IN_SEC, AUDIO_IS_NOT_RECOGNIZED, SEC_IN_MIN,
+                       RECOGNIZE_TEXT_TEMPLATE, YANDEX_SPEECH_KIT_REQUEST_URL)
 from exceptions import CreateSynopsisError
-from secret import UPLOADCARE_PUB_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -113,9 +111,8 @@ class VideoRecognition(object):
             frames_buffer_ptr += 1
             frames_buffer_ptr %= len(frames_buffer)
             if i == self.peaks[peaks_ptr] * FRAME_PERIOD:
-                name = IMG_NAME_TEMPLATE.format(number=i)
                 ind_in_buffer = (frames_buffer_ptr + len(frames_buffer)) % len(frames_buffer)
-                img_src = self._upload_image(frames_buffer[ind_in_buffer], name)
+                img_src = self._upload_image(frames_buffer[ind_in_buffer])
                 self.keyframes_src_with_timestamp.append([img_src, i / self.fps])
                 peaks_ptr += 1
             i += 1
@@ -193,23 +190,20 @@ class VideoRecognition(object):
                     human_in_center_frames += 1
         return max(video_frame, human_in_center_frames) > self.frames_between_keyframes // 2
 
-    def _upload_image(self, image, name):
+    def _upload_image(self, image):
         data = {'UPLOADCARE_PUB_KEY': self.uploadcare_pub_key,
                 'UPLOADCARE_STORE': 1}
 
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            filepath = os.path.join(tmpdirname, name)
-            cv2.imwrite(filepath, image)
-            with open(filepath, 'rb') as image_file:
-                response = requests.post(url=UPLOADCARE_URL_TO_UPLOAD,
-                                         files={'file': image_file},
-                                         data=data)
-                if response.status_code != 200:
-                    raise CreateSynopsisError('Failed to upload image, status code: {status_code}'
-                                              .format(status_code=response.status_code))
-                else:
-                    return 'https://ucarecdn.com/{uuid}/{name}'.format(uuid=response.json()['file'],
-                                                                       name=name)
+        image_bytes = io.BytesIO(cv2.imencode('.png', image)[1].tostring())
+
+        response = requests.post(url=UPLOADCARE_URL_TO_UPLOAD,
+                                 files={'file': image_bytes},
+                                 data=data)
+        if response.status_code != 200:
+            raise CreateSynopsisError('Failed to upload image, status code: {status_code}'
+                                      .format(status_code=response.status_code))
+
+        return 'https://ucarecdn.com/{uuid}/'.format(uuid=response.json()['file'])
 
 
 class Shape:
@@ -241,63 +235,48 @@ class Human:
 
 class AudioRecognition(object):
     _audio_segment = None
-    work_dir = None
     yandex_speech_kit_key = None
     lang = None
 
-    def __init__(self, work_dir, file, yandex_speech_kit_key, lang='ru-RU'):
-        self.work_dir = work_dir
+    def __init__(self, file, yandex_speech_kit_key, lang='ru-RU'):
         self._audio_segment = AudioSegment.from_file(file)
         self.yandex_speech_kit_key = yandex_speech_kit_key
         self.lang = lang
 
-    def recognize(self):
-        audio_chunks = self._split_to_chunks()
-        audio_chunk_names = self._save_audio_chunks(audio_chunks)
-        recognized_audio = self._recognize_chunks(audio_chunk_names)
-        return recognized_audio
-
-    def _split_to_chunks(self):
+    def chunks(self):
         arr = [x if not math.isinf(x) else 0 for x in
                map(lambda item: -item.dBFS, self._audio_segment)]
+
         ptr = 0
         max_len_of_chunk = 19500
-        audio_chunks = []
+
         while len(arr) > ptr + max_len_of_chunk:
             left = ptr + int(max_len_of_chunk * 0.75)
             right = ptr + max_len_of_chunk
+            chunk = io.BytesIO()
             ind = arr.index(max(arr[left:right]), left, right)
-            audio_chunks.append((ptr, ind))
+            self._audio_segment[ptr:ind].export(chunk, format='mp3')
+            yield (ptr, ind, chunk)
             ptr = ind
-        audio_chunks.append((ptr, len(arr) - 1))
-        return audio_chunks
+        chunk = io.BytesIO()
+        ind = len(arr) - 1
+        self._audio_segment[ptr:ind].export(chunk, format='mp3')
+        yield (ptr, ind, chunk)
 
-    def _save_audio_chunks(self, audio_chunks):
-        audio_chunk_names = []
-        for i, (start, end) in enumerate(audio_chunks):
-            chunk_name = 'audio_chunk_{}.mp3'.format(i)
-            chunk_path = os.path.join(self.work_dir, chunk_name)
-            self._audio_segment[start:end].export(chunk_path, format='mp3')
-            audio_chunk_names.append((start, end, chunk_path))
-        return audio_chunk_names
-
-    def _recognize_chunks(self, audio_chunk_names):
+    def recognize(self):
         recognized_audio = []
-        for (start, end, name) in audio_chunk_names:
-            text = ''
-            with open(name, 'rb') as f:
-                url = YANDEX_SPEECH_KIT_REQUEST_URL.format(key=self.yandex_speech_kit_key,
-                                                           lang=self.lang)
-                response = requests.post(url=url,
-                                         data=f,
-                                         headers={'Content-Type': 'audio/x-mpeg-3'})
+        for start, end, chunk in self.chunks():
+            url = YANDEX_SPEECH_KIT_REQUEST_URL.format(key=self.yandex_speech_kit_key,
+                                                       lang=self.lang)
+            response = requests.post(url=url,
+                                     data=chunk,
+                                     headers={'Content-Type': 'audio/x-mpeg-3'})
+            if response.status_code != 200:
+                raise CreateSynopsisError('Failed to recognize audio, status code: {status_code}'
+                                          .format(status_code=response.status_code))
 
-                if response.status_code == 200:
-                    root = ElementTree.fromstring(response.text)
-                    text = root[0].text if root.attrib['success'] == '1' else AUDIO_IS_NOT_RECOGNIZED
-                else:
-                    raise CreateSynopsisError('Failed to recognize audio, status code: {status_code}'
-                                              .format(status_code=response.status_code))
+            root = ElementTree.fromstring(response.text)
+            text = root[0].text if root.attrib['success'] == '1' else AUDIO_IS_NOT_RECOGNIZED
 
             recognized_audio.append(AudioRecognition._recognize_text_format(start, end, text))
         return recognized_audio
