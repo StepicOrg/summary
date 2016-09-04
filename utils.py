@@ -58,8 +58,8 @@ def parse_arguments():
                         help='upload care pub key',
                         required=True)
 
-    parser.add_argument('-y', '--yandex_speeck_kit_key',
-                        help='yandex speeck kit key',
+    parser.add_argument('-y', '--yandex_speech_kit_key',
+                        help='yandex speech kit key',
                         required=True)
 
     parser.add_argument('-n', '--step_number',
@@ -93,7 +93,7 @@ def get_step_block(step_id, token):
         return resp.json()['steps'][0]['block']
 
 
-def make_synopsis_from_video(video, upload_care_pub_key, yandex_speeck_kit_key):
+def make_synopsis_from_video(video, upload_care_pub_key, yandex_speech_kit_key):
     with tempfile.TemporaryDirectory() as tmpdir:
         videofile = os.path.join(tmpdir, 'tmp.mp4')
 
@@ -115,7 +115,7 @@ def make_synopsis_from_video(video, upload_care_pub_key, yandex_speeck_kit_key):
             if not run_shell_command(command):
                 raise CreateSynopsisError(command)
 
-            ar = AudioRecognition(out_audio, yandex_speeck_kit_key)
+            ar = AudioRecognition(out_audio, yandex_speech_kit_key)
             recognized_audio = ar.recognize()
 
             vr = VideoRecognition(videofile, upload_care_pub_key)
@@ -139,3 +139,23 @@ def run_shell_command(command, timeout=4):
                      .format(command=command, exitcode=exitcode))
         return False
     return True
+
+
+class Args(object):
+    def __init__(self, client_id, client_secret, upload_care_pub_key, yandex_speech_kit_key, lesson_id,
+                 step_number):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.upload_care_pub_key = upload_care_pub_key
+        self.yandex_speech_kit_key = yandex_speech_kit_key
+        self.lesson_id = int(lesson_id)
+        self.step_number = int(step_number)
+
+    def __str__(self):
+        return 'client_id = {}; ' \
+               'client_secret = {}; ' \
+               'upload_care_pub_key = {}; ' \
+               'yandex_speech_kit_key = {}; ' \
+               'lesson_id = {}; ' \
+               'step_number = {};'.format(self.client_id, self.client_secret, self.upload_care_pub_key,
+                                          self.yandex_speech_kit_key, self.lesson_id, self.step_number)

@@ -38,7 +38,7 @@ def main():
         else:
             content = make_synopsis_from_video(video=block['video'],
                                                upload_care_pub_key=args.upload_care_pub_key,
-                                               yandex_speeck_kit_key=args.yandex_speeck_kit_key)
+                                               yandex_speech_kit_key=args.yandex_speech_kit_key)
 
         result['synopsis_by_steps'].append({step: content})
 
