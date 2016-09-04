@@ -5,10 +5,9 @@ Autogenerating summary from video course
 
 - `git clone https://github.com/StepicOrg/summary.git`
 
-- copy your test.mp4 into `summary` folder
-
-
 -   - `cd summary`
-    - `python3 make_summary.py test.mp4 HS.xml`
+    - `docker build -t synopsis -f Dockerfile .`
+    - `docker run -w=/home/synopsis -ti synopsis python3 make_synopsis.py -c=CLIENT_ID -s=CLIENT_SECRET -i=LESSON_ID -u=UPLOADCARE_KEY -y=YANDEX_SPEECH_KIT_KEY [-n=STEP_NUMBER]`
+    - `docker cp $(docker ps -alq):/home/synopsis/result.txt result.txt`
 
-- check `test_summary` folder
+- check `result.txt`
