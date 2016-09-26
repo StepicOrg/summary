@@ -2,8 +2,11 @@ import os
 import logging
 import tempfile
 import argparse
+from collections import namedtuple
+
 import requests
 import subprocess
+from requests.auth import HTTPBasicAuth
 
 from recognize import VideoRecognition, AudioRecognition
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
@@ -72,27 +75,6 @@ def parse_arguments():
     return args
 
 
-def get_lesson_page(lesson_id, token):
-    resp = requests.get('{base_url}/api/lessons/{id}'.format(base_url=STEPIK_BASE_URL,
-                                                             id=lesson_id),
-                        headers={'Authorization': 'Bearer {}'.format(token)})
-    if resp.status_code != 200:
-        raise CreateSynopsisError('Filed to get lessons page from stepik, status code = {status_code}'
-                                  .format(status_code=resp.status_code))
-    return resp.json()
-
-
-def get_step_block(step_id, token):
-    resp = requests.get('{base_url}/api/steps/{id}'.format(base_url=STEPIK_BASE_URL,
-                                                           id=step_id),
-                        headers={'Authorization': 'Bearer {}'.format(token)})
-    if resp.status_code != 200:
-        raise CreateSynopsisError('Filed to get steps page from stepik, status code = {status_code}'
-                                  .format(status_code=resp.status_code))
-    else:
-        return resp.json()['steps'][0]['block']
-
-
 def make_synopsis_from_video(video, upload_care_pub_key, yandex_speech_kit_key):
     with tempfile.TemporaryDirectory() as tmpdir:
         videofile = os.path.join(tmpdir, 'tmp.mp4')
@@ -141,21 +123,53 @@ def run_shell_command(command, timeout=4):
     return True
 
 
-class Args(object):
-    def __init__(self, client_id, client_secret, upload_care_pub_key, yandex_speech_kit_key, lesson_id,
-                 step_number):
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.upload_care_pub_key = upload_care_pub_key
-        self.yandex_speech_kit_key = yandex_speech_kit_key
-        self.lesson_id = int(lesson_id)
-        self.step_number = int(step_number)
+Args = namedtuple('Args', ['client_id',
+                           'client_secret',
+                           'upload_care_pub_key',
+                           'yandex_speech_kit_key',
+                           'lesson_id',
+                           'step_number'])
 
-    def __str__(self):
-        return 'client_id = {}; ' \
-               'client_secret = {}; ' \
-               'upload_care_pub_key = {}; ' \
-               'yandex_speech_kit_key = {}; ' \
-               'lesson_id = {}; ' \
-               'step_number = {};'.format(self.client_id, self.client_secret, self.upload_care_pub_key,
-                                          self.yandex_speech_kit_key, self.lesson_id, self.step_number)
+
+class StepikClient(object):
+    def __init__(self, client_id, client_secret):
+        auth = HTTPBasicAuth(client_id, client_secret)
+        response = requests.post(url='{base_url}/oauth2/token/'.format(base_url=STEPIK_BASE_URL),
+                                 data={'grant_type': 'client_credentials'},
+                                 auth=auth)
+
+        self.token = response.json()['access_token']
+        self.session = requests.Session()
+        self.session.headers.update({'Authorization': 'Bearer ' + self.token})
+
+    def get_steps(self, lesson_id, step_number):
+        response = self.session.get('{base_url}/api/lessons/{id}'.format(base_url=STEPIK_BASE_URL,
+                                                                         id=lesson_id))
+
+        if response.status_code != 200:
+            raise CreateSynopsisError('Filed to get lessons page from stepik, status code = {status_code}'
+                                      .format(status_code=response.status_code))
+
+        lesson_page = response.json()
+
+        if len(lesson_page['lessons']) == 0:
+            raise CreateSynopsisError('wrong lesson id')
+
+        lesson = lesson_page['lessons'][0]
+
+        if step_number and (not step_number.isdigit() or not (1 <= int(step_number) <= len(lesson['steps']))):
+            CreateSynopsisError('wrong lesson id')
+
+        return [lesson['steps'][int(step_number) - 1]] if step_number else lesson['steps']
+
+    def get_step_block(self, step_id):
+        response = self.session.get('{base_url}/api/steps/{id}'.format(base_url=STEPIK_BASE_URL,
+                                                                       id=step_id))
+        if response.status_code != 200:
+            raise CreateSynopsisError('Filed to get steps page from stepik, status code = {status_code}'
+                                      .format(status_code=response.status_code))
+        return response.json()['steps'][0]['block']
+
+
+def send_response(status, msg):
+    logger.info('recognize result: status = {}, message = {}'.format(status, msg))
