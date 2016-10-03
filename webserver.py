@@ -3,6 +3,7 @@ import logging
 import tornado.ioloop
 import tornado.web
 
+import settings
 from tasks import submit_create_synopsis_task
 from utils import Args, send_response
 
@@ -15,13 +16,15 @@ class MainHandler(tornado.web.RequestHandler):
 
     def post(self, *args, **kwargs):
         try:
-            arguments = Args(client_id=self.get_argument('client_id'),
-                             client_secret=self.get_argument('client_secret'),
-                             upload_care_pub_key=self.get_argument('upload_care_pub_key'),
-                             yandex_speech_kit_key=self.get_argument('yandex_speech_kit_key'),
+            step_number = self.get_argument('step_number', default=None)
+            step_number = int(step_number) if step_number else None
+            arguments = Args(client_id=settings.CLIENT_ID,
+                             client_secret=settings.CLIENT_SECRET,
+                             upload_care_pub_key=settings.UPLOAD_CARE_PUB_KEY,
+                             yandex_speech_kit_key=settings.YANDEX_SPEECH_KIT_KEY,
                              lesson_id=self.get_argument('lesson_id'),
-                             step_number=self.get_argument('step_number', default=None))
-        except tornado.web.MissingArgumentError as err:
+                             step_number=step_number)
+        except (tornado.web.MissingArgumentError, ValueError) as err:
             send_response(False, err)
             return
 

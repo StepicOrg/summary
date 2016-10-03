@@ -157,8 +157,8 @@ class StepikClient(object):
 
         lesson = lesson_page['lessons'][0]
 
-        if step_number and (not step_number.isdigit() or not (1 <= int(step_number) <= len(lesson['steps']))):
-            CreateSynopsisError('wrong lesson id')
+        if step_number and not (1 <= int(step_number) <= len(lesson['steps'])):
+            CreateSynopsisError('step number not in [1, num_of_steps_in_lesson]')
 
         return [lesson['steps'][int(step_number) - 1]] if step_number else lesson['steps']
 
