@@ -1,2 +1,4 @@
 PeakUtils==1.0.3
 pydub==0.16.4
+tornado==4.4.1
+envparse==0.2.0
