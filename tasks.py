@@ -18,14 +18,17 @@ def submit_create_synopsis_task(args):
 def create_synopsis_task(args):
     logger.info('start task with args {}'.format(args))
 
-    stepik_client = StepikClient(args.client_id, args.client_secret)
-
-    result = {'lesson_id': args.lesson_id,
-              'synopsis_by_steps': []}
+    stepik_client = StepikClient(client_id=args.stepik_client_id,
+                                 client_secret=args.stepik_client_secret)
 
     try:
-        steps = stepik_client.get_steps(args.lesson_id, args.step_number)
-        for step in steps:
+        title, steps = stepik_client.get_title_and_steps(args.lesson_id, args.step_number)
+
+        result = {'title': title,
+                  'lesson_id': args.lesson_id,
+                  'synopsis_by_steps': []}
+
+        for position, step in enumerate(steps, start=1):
             block = stepik_client.get_step_block(step)
             if block['text']:
                 content = [{IS_TEXT: block['text']}, ]
@@ -33,10 +36,10 @@ def create_synopsis_task(args):
                 content = make_synopsis_from_video(video=block['video'],
                                                    upload_care_pub_key=args.upload_care_pub_key,
                                                    yandex_speech_kit_key=args.yandex_speech_kit_key)
-            result['synopsis_by_steps'].append({step: content})
+
+            result['synopsis_by_steps'].append((step, args.step_number or position, content))
     except CreateSynopsisError as err:
         send_response(False, err)
         return
 
-    result_json = json.dumps(result)
-    send_response(True, result_json)
+    send_response(True, result)

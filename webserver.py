@@ -18,8 +18,8 @@ class MainHandler(tornado.web.RequestHandler):
         try:
             step_number = self.get_argument('step_number', default=None)
             step_number = int(step_number) if step_number else None
-            arguments = Args(client_id=settings.CLIENT_ID,
-                             client_secret=settings.CLIENT_SECRET,
+            arguments = Args(stepik_client_id=settings.STEPIK_CLIENT_ID,
+                             stepik_client_secret=settings.STEPIK_CLIENT_SECRET,
                              upload_care_pub_key=settings.UPLOAD_CARE_PUB_KEY,
                              yandex_speech_kit_key=settings.YANDEX_SPEECH_KIT_KEY,
                              lesson_id=self.get_argument('lesson_id'),

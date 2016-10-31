@@ -35,3 +35,6 @@ IS_FRAME = 'img'
 IS_TEXT = 'text'
 
 STEPIK_BASE_URL = 'https://stepik.org'
+
+WIKI_BASE_URL = 'http://172.17.0.4'
+WIKI_API_PATH = '/api.php'

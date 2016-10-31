@@ -4,16 +4,19 @@ import tempfile
 import argparse
 from collections import namedtuple
 
+import mwapi
 import requests
 import subprocess
 from requests.auth import HTTPBasicAuth
 
+import settings
 from recognize import VideoRecognition, AudioRecognition
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
-                       IS_FRAME, IS_TEXT, STEPIK_BASE_URL)
+                       IS_FRAME, IS_TEXT, STEPIK_BASE_URL, WIKI_BASE_URL, WIKI_API_PATH)
 from exceptions import CreateSynopsisError
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def merge_audio_and_video(keyframes, recognized_audio):
@@ -123,8 +126,8 @@ def run_shell_command(command, timeout=4):
     return True
 
 
-Args = namedtuple('Args', ['client_id',
-                           'client_secret',
+Args = namedtuple('Args', ['stepik_client_id',
+                           'stepik_client_secret',
                            'upload_care_pub_key',
                            'yandex_speech_kit_key',
                            'lesson_id',
@@ -142,7 +145,7 @@ class StepikClient(object):
         self.session = requests.Session()
         self.session.headers.update({'Authorization': 'Bearer ' + self.token})
 
-    def get_steps(self, lesson_id, step_number):
+    def get_title_and_steps(self, lesson_id, step_number):
         response = self.session.get('{base_url}/api/lessons/{id}'.format(base_url=STEPIK_BASE_URL,
                                                                          id=lesson_id))
 
@@ -156,11 +159,14 @@ class StepikClient(object):
             raise CreateSynopsisError('wrong lesson id')
 
         lesson = lesson_page['lessons'][0]
+        title = lesson['title']
 
         if step_number and not (1 <= int(step_number) <= len(lesson['steps'])):
             CreateSynopsisError('step number not in [1, num_of_steps_in_lesson]')
 
-        return [lesson['steps'][int(step_number) - 1]] if step_number else lesson['steps']
+        steps = [lesson['steps'][int(step_number) - 1]] if step_number else lesson['steps']
+
+        return title, steps
 
     def get_step_block(self, step_id):
         response = self.session.get('{base_url}/api/steps/{id}'.format(base_url=STEPIK_BASE_URL,
@@ -171,5 +177,43 @@ class StepikClient(object):
         return response.json()['steps'][0]['block']
 
 
-def send_response(status, msg):
-    logger.info('recognize result: status = {}, message = {}'.format(status, msg))
+class WikiClient(object):
+    def __init__(self, login, password):
+        self.session = mwapi.Session(host=WIKI_BASE_URL, api_path=WIKI_API_PATH)
+        self.session.login(login, password)
+
+    def get_url_by_page_id(self, page_id):
+        response = self.session.get(action='query', prop='info', pageids=page_id, inprop='url')
+        url = response['query']['pages'][str(page_id)]['fullurl']
+        return url
+
+    def crete_page_from_synopsis(self, position, content, title):
+        token = self.session.get(action='query', meta='tokens')['query']['tokens']['csrftoken']
+        response = self.session.post(action='edit',
+                                     title="Шаг: {}, урок: {}".format(position, title),
+                                     section=0,
+                                     summary='Add step with id={}'.format(position),
+                                     text=content,
+                                     token=token)
+        logger.info(response)
+
+        if response['edit']['result'] == 'Success':
+            page_id = response['edit']['pageid']
+            url = self.get_url_by_page_id(page_id)
+            return True, url
+
+        return False, response
+
+
+def send_response(status, result):
+    logger.info('recognize result: status = {}, message = {}'.format(status, result))
+    if status:
+        wiki_client = WikiClient(settings.WIKI_LOGIN, settings.WIKI_PASSWORD)
+        urls = []
+        title = result['title']
+        logger.info(result)
+        for step_id, position, content in result['synopsis_by_steps']:
+            res, url = wiki_client.crete_page_from_synopsis(position, content, title)
+            if res:
+                urls.append({step_id: url})
+        logger.info(urls)
