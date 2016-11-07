@@ -38,3 +38,15 @@ STEPIK_BASE_URL = 'https://stepik.org'
 
 WIKI_BASE_URL = 'http://172.17.0.4'
 WIKI_API_PATH = '/api.php'
+
+LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
+LESSON_PAGE_TEXT_TEMPLATE = 'Page for lesson "{title}" with id = {id} ' \
+                            '{stepik_base}/lesson/{id} ' \
+                            '[[Category:Lessons]]'
+LESSON_PAGE_SUMMARY_TEMPLATE = 'Create page for lesson id={id}'
+
+STEP_PAGE_TITLE_TEMPLATE = 'Step {position} ({id})'
+STEP_PAGE_TEXT_TEMPLATE = '{content} ' \
+                          '[[Category:Steps]] ' \
+                          '[[{lesson}]] '
+STEP_PAGE_SUMMARY_TEMPLATE = 'Create page for step id={id}'
