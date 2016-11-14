@@ -1,7 +1,7 @@
-import json
 import os
 from unittest.mock import patch
 
+import requests
 from tornado.testing import AsyncHTTPTestCase
 from urllib3.request import urlencode
 
@@ -15,21 +15,19 @@ os.environ['ASYNC_TEST_TIMEOUT'] = '200'
 
 class FunctionalTest(AsyncHTTPTestCase):
     def assertPhraseInResult(self, phrase, result):
-        for synopsis_for_step in result['synopsis_by_steps']:
-            for step_id, synopsis in synopsis_for_step.items():
-                for content_obj in synopsis:
-                    for content_type, content in content_obj.items():
-                        if content_type == IS_TEXT and phrase in content:
-                            return
+        for step_synopsis in result['synopsis_by_steps']:
+            for content_item in step_synopsis['content']:
+                for content_type, text in content_item.items():
+                    if content_type == IS_TEXT and phrase in text:
+                        return
         assert False
 
     def assertResultHasImg(self, result):
-        for synopsis_for_step in result['synopsis_by_steps']:
-            for step_id, synopsis in synopsis_for_step.items():
-                for content_obj in synopsis:
-                    for content_type, content in content_obj.items():
-                        if content_type == IS_FRAME:
-                            return
+        for step_synopsis in result['synopsis_by_steps']:
+            for content_item in step_synopsis['content']:
+                for content_type, _ in content_item.items():
+                    if content_type == IS_FRAME:
+                        return
         assert False
 
     class NewPool(object):
@@ -41,17 +39,19 @@ class FunctionalTest(AsyncHTTPTestCase):
         return app
 
     @patch('tasks.pool', new=NewPool())
-    @patch('tasks.send_response')
-    def test_with_correct_args(self, new_send_response):
+    @patch('tasks.post_result_on_wiki')
+    # LONG test, ~1min
+    def test_recognize(self, new_post_result_on_wiki):
         post_args = {
             'lesson_id': '532',
             'step_number': '2'
         }
         self.fetch('/', method='POST', body=urlencode(post_args))
-        status, result_json = new_send_response.call_args[0]
-        result = json.loads(result_json)
 
-        self.assertTrue(status)
+        self.assertTrue(new_post_result_on_wiki.called)
+
+        args = new_post_result_on_wiki.call_args[1]
+        result = args['result']
 
         self.assertPhraseInResult('мультипарадигменный', result)
         self.assertPhraseInResult('низкоуровневый', result)
@@ -59,3 +59,32 @@ class FunctionalTest(AsyncHTTPTestCase):
         self.assertPhraseInResult('компилируемый', result)
 
         self.assertResultHasImg(result)
+
+    @patch('tasks.pool', new=NewPool())
+    @patch('utils.StepikClient.post_results')
+    def test_with_correct_args(self, new_post_results):
+        post_args = {
+            'lesson_id': '532',
+            'step_number': '3'
+        }
+        self.fetch('/', method='POST', body=urlencode(post_args))
+        args = new_post_results.call_args[1]
+        status = args['status']
+        result = args['result']
+
+        self.assertTrue(status)
+        self.assertEquals(post_args['lesson_id'], result['lesson_id'])
+        self.assertIsNotNone(result['lesson_wiki_url'])
+        self.assertEquals(1, len(result['step_wiki_urls']))
+
+        lesson_page_url = result['lesson_wiki_url']
+        lesson_page = requests.get(url=lesson_page_url)
+        self.assertEquals(200, lesson_page.status_code)
+        self.assertIn('Характеристики языка C++', lesson_page.text)
+
+        step_id, step_wiki_url = list(result['step_wiki_urls'][0].items())[0]
+        self.assertEquals(2827, step_id)
+
+        step_page = requests.get(url=step_wiki_url)
+        self.assertEquals(200, step_page.status_code)
+        self.assertIn('Байки о сложности C++', step_page.text)

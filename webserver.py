@@ -5,9 +5,10 @@ import tornado.web
 
 import settings
 from tasks import submit_create_synopsis_task
-from utils import Args, send_response
+from utils import Args, StepikClient
 
 logger = logging.getLogger(__name__)
+stepik_client = None
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -18,14 +19,11 @@ class MainHandler(tornado.web.RequestHandler):
         try:
             step_number = self.get_argument('step_number', default=None)
             step_number = int(step_number) if step_number else None
-            arguments = Args(stepik_client_id=settings.STEPIK_CLIENT_ID,
-                             stepik_client_secret=settings.STEPIK_CLIENT_SECRET,
-                             upload_care_pub_key=settings.UPLOAD_CARE_PUB_KEY,
-                             yandex_speech_kit_key=settings.YANDEX_SPEECH_KIT_KEY,
+            arguments = Args(stepik_client=stepik_client,
                              lesson_id=self.get_argument('lesson_id'),
                              step_number=step_number)
         except (tornado.web.MissingArgumentError, ValueError) as err:
-            send_response(False, err)
+            stepik_client.post_results(False, err)
             return
 
         submit_create_synopsis_task(arguments)
@@ -33,6 +31,9 @@ class MainHandler(tornado.web.RequestHandler):
 
 
 def make_app():
+    global stepik_client
+    stepik_client = StepikClient(client_id=settings.STEPIK_CLIENT_ID,
+                                 client_secret=settings.STEPIK_CLIENT_SECRET)
     return tornado.web.Application([
         (r'/', MainHandler),
     ])

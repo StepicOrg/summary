@@ -130,10 +130,7 @@ def run_shell_command(command, timeout=4):
     return True
 
 
-Args = namedtuple('Args', ['stepik_client_id',
-                           'stepik_client_secret',
-                           'upload_care_pub_key',
-                           'yandex_speech_kit_key',
+Args = namedtuple('Args', ['stepik_client',
                            'lesson_id',
                            'step_number'])
 
@@ -181,6 +178,10 @@ class StepikClient(object):
             raise CreateSynopsisError('Filed to get steps page from stepik, status code = {status_code}'
                                       .format(status_code=response.status_code))
         return response.json()['steps'][0]['block']
+
+    def post_results(self, status, result):
+        # TODO: post synopsis urls to stepik
+        pass
 
 
 class WikiClient(object):
@@ -248,22 +249,20 @@ class WikiClient(object):
                                       .format(response))
 
 
-def send_response(status, result):
-    logger.info('recognize result: status = {}, message = {}'.format(status, result))
-    if status:
-        wiki_client = WikiClient(settings.WIKI_LOGIN, settings.WIKI_PASSWORD)
-        lesson_id = result['lesson_id']
-        lesson_wiki_url = (
-            result['lesson_wiki_url'] or wiki_client.create_page_for_lesson(result['lesson_title'],
-                                                                            result['lesson_id']))
-        response = {'lesson_id': lesson_id,
-                    'lesson_wiki_url': lesson_wiki_url,
-                    'step_wiki_urls': []}
+def post_result_on_wiki(result):
+    wiki_client = WikiClient(settings.WIKI_LOGIN, settings.WIKI_PASSWORD)
+    lesson_id = result['lesson_id']
+    lesson_wiki_url = (
+        result['lesson_wiki_url'] or wiki_client.create_page_for_lesson(result['lesson_title'],
+                                                                        result['lesson_id']))
+    response = {'lesson_id': lesson_id,
+                'lesson_wiki_url': lesson_wiki_url,
+                'step_wiki_urls': []}
 
-        lesson_title = result['lesson_title']
-        for step_synopsis in result['synopsis_by_steps']:
-            url = wiki_client.create_page_for_step(step_synopsis, lesson_title, lesson_id)
-            response['step_wiki_urls'].append({step_synopsis['step_id']: url})
+    lesson_title = result['lesson_title']
+    for step_synopsis in result['synopsis_by_steps']:
+        url = wiki_client.create_page_for_step(step_synopsis, lesson_title, lesson_id)
+        response['step_wiki_urls'].append({step_synopsis['step_id']: url})
 
-        # TODO: send result to Stepik
-        logger.info(response)
+    logger.info(response)
+    return response
