@@ -7,13 +7,15 @@ from collections import namedtuple
 import mwapi
 import requests
 import subprocess
+
+from mwapi.errors import LoginError, APIError
 from requests.auth import HTTPBasicAuth
 
 import settings
 from recognize import VideoRecognition, AudioRecognition
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
-                       IS_FRAME, IS_TEXT, STEPIK_BASE_URL, WIKI_BASE_URL, WIKI_API_PATH, LESSON_PAGE_TITLE_TEMPLATE,
-                       LESSON_PAGE_TEXT_TEMPLATE, STEP_PAGE_TITLE_TEMPLATE, STEP_PAGE_TEXT_TEMPLATE,
+                       IS_FRAME, IS_TEXT, LESSON_PAGE_TITLE_TEMPLATE, LESSON_PAGE_TEXT_TEMPLATE,
+                       STEP_PAGE_TITLE_TEMPLATE, STEP_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE)
 from exceptions import CreateSynopsisError
 
@@ -139,7 +141,7 @@ Args = namedtuple('Args', ['stepik_client_id',
 class StepikClient(object):
     def __init__(self, client_id, client_secret):
         auth = HTTPBasicAuth(client_id, client_secret)
-        response = requests.post(url='{base_url}/oauth2/token/'.format(base_url=STEPIK_BASE_URL),
+        response = requests.post(url='{base_url}/oauth2/token/'.format(base_url=settings.STEPIK_BASE_URL),
                                  data={'grant_type': 'client_credentials'},
                                  auth=auth)
 
@@ -148,7 +150,7 @@ class StepikClient(object):
         self.session.headers.update({'Authorization': 'Bearer ' + self.token})
 
     def get_lesson_info(self, lesson_id, step_number):
-        response = self.session.get('{base_url}/api/lessons/{id}'.format(base_url=STEPIK_BASE_URL,
+        response = self.session.get('{base_url}/api/lessons/{id}'.format(base_url=settings.STEPIK_BASE_URL,
                                                                          id=lesson_id))
 
         if response.status_code != 200:
@@ -170,10 +172,10 @@ class StepikClient(object):
         # TODO: exclude steps that already have a synopsis (by StepikAPI)
         # TODO: get lesson_wiki_url (by StepikAPI)
         lesson_wiki_url = None
-        return title, steps, lesson_wiki_url
+        return {'title': title, 'steps': steps, 'lesson_wiki_url': lesson_wiki_url}
 
     def get_step_block(self, step_id):
-        response = self.session.get('{base_url}/api/steps/{id}'.format(base_url=STEPIK_BASE_URL,
+        response = self.session.get('{base_url}/api/steps/{id}'.format(base_url=settings.STEPIK_BASE_URL,
                                                                        id=step_id))
         if response.status_code != 200:
             raise CreateSynopsisError('Filed to get steps page from stepik, status code = {status_code}'
@@ -183,59 +185,67 @@ class StepikClient(object):
 
 class WikiClient(object):
     def __init__(self, login, password):
-        self.session = mwapi.Session(host=WIKI_BASE_URL, api_path=WIKI_API_PATH)
-        self.session.login(login, password)
-        self.token = self.session.get(action='query', meta='tokens')['query']['tokens']['csrftoken']
+        self.session = mwapi.Session(host=settings.WIKI_BASE_URL, api_path=settings.WIKI_API_PATH)
+        try:
+            self.session.login(login, password)
+            self.token = self.session.get(action='query', meta='tokens')['query']['tokens']['csrftoken']
+        except (LoginError, APIError) as e:
+            msg = 'cant initialize WikiClient'
+            logger.exception(msg)
+            raise CreateSynopsisError('msg={}; error={}'.format(msg, e))
 
     def get_url_by_page_id(self, page_id):
-        response = self.session.get(action='query', prop='info', pageids=page_id, inprop='url')
+        try:
+            response = self.session.get(action='query', prop='info', pageids=page_id, inprop='url')
+        except APIError as e:
+            raise CreateSynopsisError(str(e))
         url = response['query']['pages'][str(page_id)]['fullurl']
         return url
 
-    def create_page_for_step(self, step_id, position, content, lesson_title, lesson_id):
+    def create_page_for_step(self, step_synopsis, lesson_title, lesson_id):
         lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson_title, id=lesson_id)
-        text = STEP_PAGE_TEXT_TEMPLATE.format(content=content, lesson=lesson_page_title)
-        title = STEP_PAGE_TITLE_TEMPLATE.format(position=position, id=step_id)
-        summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step_id)
+        text = STEP_PAGE_TEXT_TEMPLATE.format(content=step_synopsis['content'], lesson=lesson_page_title)
+        title = STEP_PAGE_TITLE_TEMPLATE.format(position=step_synopsis['position'], id=step_synopsis['step_id'])
+        summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step_synopsis['step_id'])
 
-        response = self.session.post(action='edit',
-                                     title=title,
-                                     section=0,
-                                     summary=summary,
-                                     text=text,
-                                     token=self.token)
+        try:
+            response = self.session.post(action='edit',
+                                         title=title,
+                                         section=0,
+                                         summary=summary,
+                                         text=text,
+                                         token=self.token)
+        except APIError as e:
+            raise CreateSynopsisError(str(e))
 
         return self._extract_url_from_response(response)
 
     def create_page_for_lesson(self, lesson_title, lesson_id):
         title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson_title, id=lesson_id)
-        text = LESSON_PAGE_TEXT_TEMPLATE.format(stepik_base=STEPIK_BASE_URL,
+        text = LESSON_PAGE_TEXT_TEMPLATE.format(stepik_base=settings.STEPIK_BASE_URL,
                                                 title=lesson_title,
                                                 id=lesson_id)
         summary = LESSON_PAGE_SUMMARY_TEMPLATE.format(id=lesson_id)
-
-        response = self.session.post(action='edit',
-                                     title=title,
-                                     section=0,
-                                     summary=summary,
-                                     text=text,
-                                     token=self.token)
+        try:
+            response = self.session.post(action='edit',
+                                         title=title,
+                                         section=0,
+                                         summary=summary,
+                                         text=text,
+                                         token=self.token)
+        except APIError as e:
+            raise CreateSynopsisError(str(e))
 
         return self._extract_url_from_response(response)
 
     def _extract_url_from_response(self, response):
-        try:
-            if response['edit']['result'] == 'Success':
-                page_id = response['edit']['pageid']
-                url = self.get_url_by_page_id(page_id)
-                return url
-            else:
-                msg = "Cant extract url from response, response = {}".format(response)
-                raise CreateSynopsisError(msg)
-        except KeyError:
-            msg = "Cant extract url from response, response = {}".format(response)
-            logger.exception(msg)
-            raise CreateSynopsisError(msg)
+        if response['edit']['result'] == 'Success':
+            page_id = response['edit']['pageid']
+            url = self.get_url_by_page_id(page_id)
+            return url
+        else:
+            raise CreateSynopsisError("Cant extract url from response, response = {}"
+                                      .format(response))
 
 
 def send_response(status, result):
@@ -251,9 +261,9 @@ def send_response(status, result):
                     'step_wiki_urls': []}
 
         lesson_title = result['lesson_title']
-        for step_id, position, content in result['synopsis_by_steps']:
-            url = wiki_client.create_page_for_step(step_id, position, content, lesson_title, lesson_id)
-            response['step_wiki_urls'].append({step_id: url})
+        for step_synopsis in result['synopsis_by_steps']:
+            url = wiki_client.create_page_for_step(step_synopsis, lesson_title, lesson_id)
+            response['step_wiki_urls'].append({step_synopsis['step_id']: url})
 
         # TODO: send result to Stepik
         logger.info(response)

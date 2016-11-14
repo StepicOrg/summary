@@ -22,14 +22,14 @@ def create_synopsis_task(args):
                                  client_secret=args.stepik_client_secret)
 
     try:
-        lesson_title, steps, lesson_wiki_url = stepik_client.get_lesson_info(args.lesson_id, args.step_number)
+        lesson_info = stepik_client.get_lesson_info(args.lesson_id, args.step_number)
 
-        result = {'lesson_title': lesson_title,
+        result = {'lesson_title': lesson_info['title'],
                   'lesson_id': args.lesson_id,
-                  'lesson_wiki_url': lesson_wiki_url,
+                  'lesson_wiki_url': lesson_info['lesson_wiki_url'],
                   'synopsis_by_steps': []}
 
-        for position, step_id in enumerate(steps, start=1):
+        for position, step_id in enumerate(lesson_info['steps'], start=1):
             block = stepik_client.get_step_block(step_id)
             if block['text']:
                 content = [{IS_TEXT: block['text']}, ]
@@ -38,7 +38,9 @@ def create_synopsis_task(args):
                                                    upload_care_pub_key=args.upload_care_pub_key,
                                                    yandex_speech_kit_key=args.yandex_speech_kit_key)
 
-            result['synopsis_by_steps'].append((step_id, args.step_number or position, content))
+            result['synopsis_by_steps'].append({'step_id': step_id,
+                                                'position': args.step_number or position,
+                                                'content': content})
     except CreateSynopsisError as err:
         send_response(False, err)
         return
