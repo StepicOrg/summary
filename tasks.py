@@ -1,10 +1,10 @@
 import concurrent.futures
-import json
 import logging
 
-from constants import IS_TEXT
+import settings
+from constants import ContentType
 from exceptions import CreateSynopsisError
-from utils import StepikClient, make_synopsis_from_video, send_response
+from utils import make_synopsis_from_video, post_result_on_wiki
 
 pool = concurrent.futures.ProcessPoolExecutor()
 logger = logging.getLogger(__name__)
@@ -18,25 +18,39 @@ def submit_create_synopsis_task(args):
 def create_synopsis_task(args):
     logger.info('start task with args {}'.format(args))
 
-    stepik_client = StepikClient(args.client_id, args.client_secret)
-
-    result = {'lesson_id': args.lesson_id,
-              'synopsis_by_steps': []}
-
     try:
-        steps = stepik_client.get_steps(args.lesson_id, args.step_number)
-        for step in steps:
-            block = stepik_client.get_step_block(step)
+        lesson_info = args.stepik_client.get_lesson_info(args.lesson_id, args.step_number)
+
+        result = {
+            'lesson_title': lesson_info['title'],
+            'lesson_id': args.lesson_id,
+            'lesson_wiki_url': lesson_info['lesson_wiki_url'],
+            'synopsis_by_steps': []
+        }
+
+        for position, step_id in enumerate(lesson_info['steps'], start=1):
+            block = args.stepik_client.get_step_block(step_id)
             if block['text']:
-                content = [{IS_TEXT: block['text']}, ]
+                content = [
+                    {
+                        'type': ContentType.TEXT,
+                        'content': block['text']
+                    },
+                ]
             else:
                 content = make_synopsis_from_video(video=block['video'],
-                                                   upload_care_pub_key=args.upload_care_pub_key,
-                                                   yandex_speech_kit_key=args.yandex_speech_kit_key)
-            result['synopsis_by_steps'].append({step: content})
-    except CreateSynopsisError as err:
-        send_response(False, err)
-        return
+                                                   upload_care_pub_key=settings.UPLOAD_CARE_PUB_KEY,
+                                                   yandex_speech_kit_key=settings.YANDEX_SPEECH_KIT_KEY)
 
-    result_json = json.dumps(result)
-    send_response(True, result_json)
+            result['synopsis_by_steps'].append(
+                {
+                    'step_id': step_id,
+                    'position': args.step_number or position,
+                    'content': content
+                }
+            )
+            response_for_stepik = post_result_on_wiki(result=result)
+            args.stepik_client.post_results(status=True, result=response_for_stepik)
+    except CreateSynopsisError as err:
+        args.stepik_client.post_results(status=False, result=err)
+        return

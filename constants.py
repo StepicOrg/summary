@@ -1,3 +1,5 @@
+import textwrap
+
 FRAME_PERIOD = 3
 BOTTOM_LINE_COEF = 3
 
@@ -27,11 +29,27 @@ FFMPEG_EXTRACT_AUDIO = 'ffmpeg -loglevel quiet -y -i "{input_video}" -ab 160k -a
 WKHTMLTOPDF = 'wkhtmltopdf "{in_html}" "{out_pdf}"'
 GHOSTSCRIPT = 'gs -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER -sOutputFile="{out_file}" {in_files}'
 
-
 VIDEOS_DOWNLOAD_MAX_SIZE = 500 * 1024 * 1024
 VIDEOS_DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 
-IS_FRAME = 'img'
-IS_TEXT = 'text'
 
-STEPIK_BASE_URL = 'https://stepik.org'
+class ContentType(object):
+    IMG = 1
+    TEXT = 2
+
+
+LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
+LESSON_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
+                              Page for lesson "{title}" with id = {id}
+                              {stepik_base}/lesson/{id}
+                              [[Category:Lessons]]
+                              """)
+LESSON_PAGE_SUMMARY_TEMPLATE = 'Create page for lesson id={id}'
+
+STEP_PAGE_TITLE_TEMPLATE = 'Step {position} ({id})'
+STEP_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
+                            {content}
+                            [[Category:Steps]]
+                            [[{lesson}]]
+                            """)
+STEP_PAGE_SUMMARY_TEMPLATE = 'Create page for step id={id}'
