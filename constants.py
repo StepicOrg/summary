@@ -29,12 +29,14 @@ FFMPEG_EXTRACT_AUDIO = 'ffmpeg -loglevel quiet -y -i "{input_video}" -ab 160k -a
 WKHTMLTOPDF = 'wkhtmltopdf "{in_html}" "{out_pdf}"'
 GHOSTSCRIPT = 'gs -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER -sOutputFile="{out_file}" {in_files}'
 
-
 VIDEOS_DOWNLOAD_MAX_SIZE = 500 * 1024 * 1024
 VIDEOS_DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 
-IS_IMG = 'img'
-IS_TEXT = 'text'
+
+class ContentType(object):
+    IMG = 1
+    TEXT = 2
+
 
 LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
 LESSON_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\

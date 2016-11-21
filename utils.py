@@ -15,9 +15,9 @@ from requests.auth import HTTPBasicAuth
 import settings
 from recognize import VideoRecognition, AudioRecognition
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
-                       IS_IMG, IS_TEXT, LESSON_PAGE_TITLE_TEMPLATE, LESSON_PAGE_TEXT_TEMPLATE,
+                       LESSON_PAGE_TITLE_TEMPLATE, LESSON_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_TITLE_TEMPLATE, STEP_PAGE_TEXT_TEMPLATE,
-                       STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE)
+                       STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE, ContentType)
 from exceptions import CreateSynopsisError
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ def merge_audio_and_video(keyframes, recognized_audio):
         if keyframes[frames_ptr][1] <= recognized_audio[audio_ptr][0]:
             content.append(
                 {
-                    'type': IS_IMG,
+                    'type': ContentType.IMG,
                     'content': keyframes[frames_ptr][0]
                 }
             )
@@ -46,7 +46,7 @@ def merge_audio_and_video(keyframes, recognized_audio):
         else:
             content.append(
                 {
-                    'type': IS_TEXT,
+                    'type': ContentType.TEXT,
                     'content': recognized_audio[audio_ptr][2]
                 }
             )
@@ -55,7 +55,7 @@ def merge_audio_and_video(keyframes, recognized_audio):
     while frames_ptr < len(keyframes):
         content.append(
             {
-                'type': IS_IMG,
+                'type': ContentType.IMG,
                 'content': keyframes[frames_ptr][0]
             }
         )
@@ -64,7 +64,7 @@ def merge_audio_and_video(keyframes, recognized_audio):
     while audio_ptr < len(recognized_audio):
         content.append(
             {
-                'type': IS_TEXT,
+                'type': ContentType.TEXT,
                 'content': recognized_audio[audio_ptr][2]
             }
         )
@@ -280,15 +280,24 @@ def post_result_on_wiki(result):
         result['lesson_wiki_url'] or wiki_client.create_page_for_lesson(result['lesson_title'],
                                                                         result['lesson_id']))
     response = {
-        'lesson_id': lesson_id,
-        'lesson_wiki_url': lesson_wiki_url,
+        'lesson_wiki_urls': [
+            {
+                'pk': lesson_id,
+                'wiki_url': lesson_wiki_url
+            },
+        ],
         'step_wiki_urls': []
     }
 
     lesson_title = result['lesson_title']
     for step_synopsis in result['synopsis_by_steps']:
         url = wiki_client.create_page_for_step(step_synopsis, lesson_title, lesson_id)
-        response['step_wiki_urls'].append({step_synopsis['step_id']: url})
+        response['step_wiki_urls'].append(
+            {
+                'pk': step_synopsis['step_id'],
+                'wiki_url': url
+            }
+        )
 
     logger.info(response)
     return response

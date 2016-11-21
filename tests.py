@@ -5,7 +5,7 @@ import requests
 from tornado.testing import AsyncHTTPTestCase
 from urllib3.request import urlencode
 
-from constants import IS_TEXT, IS_IMG
+from constants import ContentType
 from webserver import make_app
 
 app = make_app()
@@ -17,14 +17,14 @@ class FunctionalTest(AsyncHTTPTestCase):
     def assertPhraseInResult(self, phrase, result):
         for step_synopsis in result['synopsis_by_steps']:
             for content_item in step_synopsis['content']:
-                if content_item['type'] == IS_TEXT and phrase in content_item['content']:
+                if content_item['type'] == ContentType.TEXT and phrase in content_item['content']:
                     return
         assert False
 
     def assertResultHasImg(self, result):
         for step_synopsis in result['synopsis_by_steps']:
             for content_item in step_synopsis['content']:
-                if content_item['type'] == IS_IMG:
+                if content_item['type'] == ContentType.IMG:
                     return
         assert False
 
@@ -71,16 +71,19 @@ class FunctionalTest(AsyncHTTPTestCase):
         result = args['result']
 
         self.assertTrue(status)
-        self.assertEquals(post_args['lesson_id'], result['lesson_id'])
-        self.assertIsNotNone(result['lesson_wiki_url'])
-        self.assertEquals(1, len(result['step_wiki_urls']))
 
-        lesson_page_url = result['lesson_wiki_url']
+        self.assertEquals(1, len(result['lesson_wiki_urls']))
+        self.assertEquals(post_args['lesson_id'], result['lesson_wiki_urls'][0]['pk'])
+
+        lesson_page_url = result['lesson_wiki_urls'][0]['wiki_url']
+        self.assertIsNotNone(lesson_page_url)
         lesson_page = requests.get(url=lesson_page_url)
         self.assertEquals(200, lesson_page.status_code)
         self.assertIn('Характеристики языка C++', lesson_page.text)
 
-        step_id, step_wiki_url = list(result['step_wiki_urls'][0].items())[0]
+        self.assertEquals(1, len(result['step_wiki_urls']))
+        step_id = result['step_wiki_urls'][0]['pk']
+        step_wiki_url = result['step_wiki_urls'][0]['wiki_url']
         self.assertEquals(2827, step_id)
 
         step_page = requests.get(url=step_wiki_url)

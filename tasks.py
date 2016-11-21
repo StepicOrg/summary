@@ -2,7 +2,7 @@ import concurrent.futures
 import logging
 
 import settings
-from constants import IS_TEXT
+from constants import ContentType
 from exceptions import CreateSynopsisError
 from utils import make_synopsis_from_video, post_result_on_wiki
 
@@ -33,7 +33,7 @@ def create_synopsis_task(args):
             if block['text']:
                 content = [
                     {
-                        'type': IS_TEXT,
+                        'type': ContentType.TEXT,
                         'content': block['text']
                     },
                 ]
