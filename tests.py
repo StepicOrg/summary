@@ -5,7 +5,7 @@ import requests
 from tornado.testing import AsyncHTTPTestCase
 from urllib3.request import urlencode
 
-from constants import IS_TEXT, IS_FRAME
+from constants import IS_TEXT, IS_IMG
 from webserver import make_app
 
 app = make_app()
@@ -17,17 +17,15 @@ class FunctionalTest(AsyncHTTPTestCase):
     def assertPhraseInResult(self, phrase, result):
         for step_synopsis in result['synopsis_by_steps']:
             for content_item in step_synopsis['content']:
-                for content_type, text in content_item.items():
-                    if content_type == IS_TEXT and phrase in text:
-                        return
+                if content_item['type'] == IS_TEXT and phrase in content_item['content']:
+                    return
         assert False
 
     def assertResultHasImg(self, result):
         for step_synopsis in result['synopsis_by_steps']:
             for content_item in step_synopsis['content']:
-                for content_type, _ in content_item.items():
-                    if content_type == IS_FRAME:
-                        return
+                if content_item['type'] == IS_IMG:
+                    return
         assert False
 
     class NewPool(object):

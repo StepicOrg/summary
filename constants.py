@@ -33,7 +33,7 @@ GHOSTSCRIPT = 'gs -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER -sOutputFile="{out
 VIDEOS_DOWNLOAD_MAX_SIZE = 500 * 1024 * 1024
 VIDEOS_DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 
-IS_FRAME = 'img'
+IS_IMG = 'img'
 IS_TEXT = 'text'
 
 LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"

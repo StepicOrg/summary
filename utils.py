@@ -9,12 +9,13 @@ import requests
 import subprocess
 
 from mwapi.errors import LoginError, APIError
+from requests import RequestException
 from requests.auth import HTTPBasicAuth
 
 import settings
 from recognize import VideoRecognition, AudioRecognition
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
-                       IS_FRAME, IS_TEXT, LESSON_PAGE_TITLE_TEMPLATE, LESSON_PAGE_TEXT_TEMPLATE,
+                       IS_IMG, IS_TEXT, LESSON_PAGE_TITLE_TEMPLATE, LESSON_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_TITLE_TEMPLATE, STEP_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE)
 from exceptions import CreateSynopsisError
@@ -35,17 +36,40 @@ def merge_audio_and_video(keyframes, recognized_audio):
 
     while frames_ptr < len(keyframes) and audio_ptr < len(recognized_audio):
         if keyframes[frames_ptr][1] <= recognized_audio[audio_ptr][0]:
-            content.append({IS_FRAME: keyframes[frames_ptr][0]})
+            content.append(
+                {
+                    'type': IS_IMG,
+                    'content': keyframes[frames_ptr][0]
+                }
+            )
             frames_ptr += 1
         else:
-            content.append({IS_TEXT: recognized_audio[audio_ptr][2]})
+            content.append(
+                {
+                    'type': IS_TEXT,
+                    'content': recognized_audio[audio_ptr][2]
+                }
+            )
             audio_ptr += 1
+
     while frames_ptr < len(keyframes):
-        content.append({IS_FRAME: keyframes[frames_ptr][0]})
+        content.append(
+            {
+                'type': IS_IMG,
+                'content': keyframes[frames_ptr][0]
+            }
+        )
         frames_ptr += 1
+
     while audio_ptr < len(recognized_audio):
-        content.append({IS_TEXT: recognized_audio[audio_ptr][2]})
+        content.append(
+            {
+                'type': IS_TEXT,
+                'content': recognized_audio[audio_ptr][2]
+            }
+        )
         audio_ptr += 1
+
     return content
 
 
@@ -190,7 +214,7 @@ class WikiClient(object):
         try:
             self.session.login(login, password)
             self.token = self.session.get(action='query', meta='tokens')['query']['tokens']['csrftoken']
-        except (LoginError, APIError) as e:
+        except (LoginError, APIError, RequestException) as e:
             msg = 'cant initialize WikiClient'
             logger.exception(msg)
             raise CreateSynopsisError('msg={}; error={}'.format(msg, e))
@@ -198,7 +222,7 @@ class WikiClient(object):
     def get_url_by_page_id(self, page_id):
         try:
             response = self.session.get(action='query', prop='info', pageids=page_id, inprop='url')
-        except APIError as e:
+        except (APIError, RequestException) as e:
             raise CreateSynopsisError(str(e))
         url = response['query']['pages'][str(page_id)]['fullurl']
         return url
@@ -216,7 +240,7 @@ class WikiClient(object):
                                          summary=summary,
                                          text=text,
                                          token=self.token)
-        except APIError as e:
+        except (APIError, RequestException) as e:
             raise CreateSynopsisError(str(e))
 
         return self._extract_url_from_response(response)
@@ -234,7 +258,7 @@ class WikiClient(object):
                                          summary=summary,
                                          text=text,
                                          token=self.token)
-        except APIError as e:
+        except (APIError, RequestException) as e:
             raise CreateSynopsisError(str(e))
 
         return self._extract_url_from_response(response)
@@ -255,9 +279,11 @@ def post_result_on_wiki(result):
     lesson_wiki_url = (
         result['lesson_wiki_url'] or wiki_client.create_page_for_lesson(result['lesson_title'],
                                                                         result['lesson_id']))
-    response = {'lesson_id': lesson_id,
-                'lesson_wiki_url': lesson_wiki_url,
-                'step_wiki_urls': []}
+    response = {
+        'lesson_id': lesson_id,
+        'lesson_wiki_url': lesson_wiki_url,
+        'step_wiki_urls': []
+    }
 
     lesson_title = result['lesson_title']
     for step_synopsis in result['synopsis_by_steps']:
