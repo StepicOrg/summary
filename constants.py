@@ -38,6 +38,18 @@ class ContentType(object):
     TEXT = 2
 
 
+class SynopsisState(object):
+    DOESNT_EXIST = 1
+    IN_PROGRESS = 2
+    EXIST = 3
+    ERROR = 4
+
+
+class SynopsisType(object):
+    STEP = 1
+    LESSON = 2
+
+
 LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
 LESSON_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                               Page for lesson "{title}" with id = {id}

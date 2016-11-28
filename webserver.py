@@ -1,11 +1,12 @@
 import logging
 
+import tornado.escape
 import tornado.ioloop
 import tornado.web
 
 import settings
 from tasks import submit_create_synopsis_task
-from utils import Args, StepikClient
+from utils import StepikClient
 
 logger = logging.getLogger(__name__)
 stepik_client = None
@@ -17,16 +18,12 @@ class MainHandler(tornado.web.RequestHandler):
 
     def post(self, *args, **kwargs):
         try:
-            step_number = self.get_argument('step_number', default=None)
-            step_number = int(step_number) if step_number else None
-            arguments = Args(stepik_client=stepik_client,
-                             lesson_id=self.get_argument('lesson_id'),
-                             step_number=step_number)
-        except (tornado.web.MissingArgumentError, ValueError) as err:
-            stepik_client.post_results(False, err)
+            data = tornado.escape.json_decode(self.request.body)
+        except (TypeError, ValueError):
+            self.set_status(404)
             return
 
-        submit_create_synopsis_task(arguments)
+        submit_create_synopsis_task(stepik_client, data)
         self.set_status(200)
 
 
