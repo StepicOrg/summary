@@ -1,25 +1,23 @@
-import json
-import os
-import logging
-import tempfile
 import argparse
-from collections import namedtuple
+import json
+import logging
+import os
+import subprocess
+import tempfile
 
 import mwapi
 import requests
-import subprocess
-
 from mwapi.errors import LoginError, APIError
 from requests import RequestException
 from requests.auth import HTTPBasicAuth
 
 import settings
-from recognize import VideoRecognition, AudioRecognition
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
                        LESSON_PAGE_TITLE_TEMPLATE, LESSON_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_TITLE_TEMPLATE, STEP_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE, ContentType, SynopsisState)
 from exceptions import CreateSynopsisError
+from recognize import VideoRecognition, AudioRecognition
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -279,11 +277,27 @@ class WikiClient(object):
         url = response['query']['pages'][str(page_id)]['fullurl']
         return url
 
+    def get_url_by_page_title(self, title):
+        try:
+            response = self.session.post(action='query', titles=title)
+        except (APIError, RequestException) as e:
+            raise CreateSynopsisError(str(e))
+
+        page_id = int(list(response['query']['pages'])[0])
+        if page_id < 0:
+            return None
+
+        return self.get_url_by_page_id(page_id)
+
     def create_page_for_step(self, step_synopsis, lesson_title, lesson_id):
         lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson_title, id=lesson_id)
         text = STEP_PAGE_TEXT_TEMPLATE.format(content=step_synopsis['content'], lesson=lesson_page_title)
         title = STEP_PAGE_TITLE_TEMPLATE.format(position=step_synopsis['position'], id=step_synopsis['step_id'])
         summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step_synopsis['step_id'])
+
+        page_url = self.get_url_by_page_title(title)
+        if page_url:
+            return page_url
 
         try:
             response = self.session.post(action='edit',
@@ -291,9 +305,13 @@ class WikiClient(object):
                                          section=0,
                                          summary=summary,
                                          text=text,
-                                         token=self.token)
-        except (APIError, RequestException) as e:
+                                         token=self.token,
+                                         createonly=True)
+        except RequestException as e:
             raise CreateSynopsisError(str(e))
+        except APIError:
+            logger.exception('mwapi.errors.APIError: articleexists: - its OK')
+            return self.get_url_by_page_title(title)
 
         return self._extract_url_from_response(response)
 
@@ -303,15 +321,24 @@ class WikiClient(object):
                                                 title=lesson_title,
                                                 id=lesson_id)
         summary = LESSON_PAGE_SUMMARY_TEMPLATE.format(id=lesson_id)
+
+        page_url = self.get_url_by_page_title(title)
+        if page_url:
+            return page_url
+
         try:
             response = self.session.post(action='edit',
                                          title=title,
                                          section=0,
                                          summary=summary,
                                          text=text,
-                                         token=self.token)
-        except (APIError, RequestException) as e:
+                                         token=self.token,
+                                         createonly=True)
+        except RequestException as e:
             raise CreateSynopsisError(str(e))
+        except APIError:
+            logger.exception('mwapi.errors.APIError: articleexists: - its OK')
+            return self.get_url_by_page_title(title)
 
         return self._extract_url_from_response(response)
 
