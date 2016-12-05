@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 
 import mwapi
+import pypandoc
 import requests
 from mwapi.errors import LoginError, APIError
 from requests import RequestException
@@ -332,8 +333,9 @@ class WikiClient(object):
         return self.get_url_by_page_id(page_id)
 
     def create_page_for_step(self, step_synopsis, lesson_title, lesson_id):
+        content = self._prepare_content(step_synopsis['content'])
         lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson_title, id=lesson_id)
-        text = STEP_PAGE_TEXT_TEMPLATE.format(content=step_synopsis['content'], lesson=lesson_page_title)
+        text = STEP_PAGE_TEXT_TEMPLATE.format(content=content, lesson=lesson_page_title)
         title = STEP_PAGE_TITLE_TEMPLATE.format(position=step_synopsis['position'], id=step_synopsis['step_id'])
         summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step_synopsis['step_id'])
 
@@ -392,6 +394,15 @@ class WikiClient(object):
         else:
             raise CreateSynopsisError("Cant extract url from response, response = {}"
                                       .format(response))
+
+    def _prepare_content(self, content):
+        result = []
+        for item in content:
+            if item['type'] == ContentType.TEXT:
+                result.append(pypandoc.convert_text(item['content'], format='html', to='mediawiki'))
+            elif item['type'] == ContentType.IMG:
+                result.append('{<img width="50%" src="{}">}'.format(item['content']))
+        return '\n\n'.join(result)
 
 
 def post_result_on_wiki(result):

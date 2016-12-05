@@ -46,5 +46,7 @@ RUN apt-get update && \
     apt-get upgrade && \
     apt-get install -y python3-pip
 
+RUN apt-get install -y pandoc
+
 RUN apt-get install -y python3-scipy \
     && pip3 install -r /home/synopsis/requirements.txt
