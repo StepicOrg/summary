@@ -16,7 +16,8 @@ import settings
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
                        LESSON_PAGE_TITLE_TEMPLATE, LESSON_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_TITLE_TEMPLATE, STEP_PAGE_TEXT_TEMPLATE,
-                       STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE, ContentType, SynopsisState)
+                       STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE, ContentType, SynopsisState,
+                       SynopsisType)
 from exceptions import CreateSynopsisError
 from recognize import VideoRecognition, AudioRecognition
 
@@ -165,140 +166,23 @@ class StepikClient(object):
         self.session = requests.Session()
         self.session.headers.update({'Authorization': 'Bearer ' + self.token})
 
-    def get_lesson_info(self, lesson_id):
+    def get_lesson(self, lesson_id):
         response = self.session.get('{base_url}/api/lessons/{id}'.format(base_url=settings.STEPIK_BASE_URL,
                                                                          id=lesson_id))
-
-        if response.status_code != 200:
+        if not response:
             raise CreateSynopsisError('Filed to get lessons page from stepik, status code = {status_code}'
                                       .format(status_code=response.status_code))
 
-        lessons_page = response.json()
-        if len(lessons_page['lessons']) == 0:
-            raise CreateSynopsisError('wrong lesson id')
+        return response.json()['lessons'][0]
 
-        return lessons_page['lessons'][0]
-
-    def get_step_info(self, step_id):
+    def get_step(self, step_id):
         response = self.session.get('{base_url}/api/steps/{id}'.format(base_url=settings.STEPIK_BASE_URL,
                                                                        id=step_id))
-        if response.status_code != 200:
+        if not response:
             raise CreateSynopsisError('Filed to get steps page from stepik, status code = {status_code}'
                                       .format(status_code=response.status_code))
 
-        steps_page = response.json()
-        if len(steps_page['steps']) == 0:
-            raise CreateSynopsisError('wrong step id')
-
-        return steps_page['steps'][0]
-
-    def get_synopsis_step_info(self, step_info):
-        if step_info['synopsis'] is None:
-            raise CreateSynopsisError('No synopsis id for getting synopsis info')
-
-        response = self.session.get('{base_url}/api/synopsis-steps/{pk}'.format(base_url=settings.STEPIK_BASE_URL,
-                                                                                pk=step_info['synopsis']))
-        if response.status_code != 200:
-            raise CreateSynopsisError('Filed to get synopsis_step page from stepik, status code = {status_code}'
-                                      .format(status_code=response.status_code))
-
-        synopsis_step_page = response.json()
-        if len(synopsis_step_page['synopsis-steps']) == 0:
-            raise CreateSynopsisError('wrong synopsis_step id')
-
-        return synopsis_step_page['synopsis-steps'][0]
-
-    def get_synopsis_lesson_info(self, synopsis_lesson_id):
-        response = self.session.get('{base_url}/api/synopsis-lessons/{pk}'.format(base_url=settings.STEPIK_BASE_URL,
-                                                                                  pk=synopsis_lesson_id))
-        if response.status_code != 200:
-            raise CreateSynopsisError('Filed to get synopsis_lesson page from stepik, status code = {status_code}'
-                                      .format(status_code=response.status_code))
-
-        synopsis_lesson_page = response.json()
-        if len(synopsis_lesson_page['synopsis-lessons']) == 0:
-            raise CreateSynopsisError('wrong synopsis_lesson id')
-
-        return synopsis_lesson_page['synopsis-lessons'][0]
-
-    def get_lesson_by_step(self, step_id):
-        step = self.get_step_info(step_id)
-        return step['lesson']
-
-    def get_step_block(self, step_id):
-        step = self.get_step_info(step_id)
-        return step['block']
-
-    def get_lesson_wiki_url(self, lesson_info):
-        if not lesson_info['synopsis']:
-            return None
-
-        synopsis = self.get_synopsis_lesson_info(lesson_info['synopsis'])
-        return synopsis['url']
-
-    def post_results(self, status, result, request=None):
-        if status:
-            for synopsis_lesson in result['synopsis_lessons']:
-                if synopsis_lesson['pk']:
-                    self._update_synopsis_lesson(synopsis_lesson)
-                else:
-                    self._create_synopsis_lesson(synopsis_lesson)
-
-            for synopsis_step in result['synopsis_steps']:
-                self._update_synopsis_step(synopsis_step)
-
-    def _create_synopsis_lesson(self, synopsis_lesson):
-        response = self.session.post(
-            url='{base_url}/api/synopsis-lessons'.format(base_url=settings.STEPIK_BASE_URL),
-            data=json.dumps(
-                {
-                    'synopsis-lessons':
-                        {
-                            'lesson': synopsis_lesson['lesson_id'],
-                            'url': synopsis_lesson['url']
-                        }
-                }
-            ),
-            headers={'Content-Type': 'application/json'}
-        )
-        logger.info('{}; {}'.format(response.status_code, response.content))
-
-    def _update_synopsis_lesson(self, synopsis_lesson):
-        response = self.session.put(
-            url='{base_url}/api/synopsis-lessons/{pk}'.format(base_url=settings.STEPIK_BASE_URL,
-                                                              pk=synopsis_lesson['pk']),
-            data=json.dumps(
-                {
-                    'synopsis-lessons':
-                        {
-                            'lesson': synopsis_lesson['lesson_id'],
-                            'url': synopsis_lesson['url']
-                        }
-                }
-            ),
-            headers={'Content-Type': 'application/json'}
-        )
-        logger.info('{}; {}'.format(response.status_code, response.content))
-
-    def _update_synopsis_step(self, synopsis_step):
-        synopsis_info = synopsis_step['synopsis_info']
-        response = self.session.put(
-            url='{base_url}/api/synopsis-steps/{pk}'.format(base_url=settings.STEPIK_BASE_URL,
-                                                            pk=synopsis_info['id']),
-            data=json.dumps(
-                {
-                    'synopsis-steps':
-                        {
-                            'step': synopsis_info['step'],
-                            'state': SynopsisState.EXIST,
-                            'url': synopsis_step['url'],
-                            'requester': synopsis_info['requester']
-                        }
-                }
-            ),
-            headers={'Content-Type': 'application/json'}
-        )
-        logger.info('{}; {}'.format(response.status_code, response.content))
+        return response.json()['steps'][0]
 
 
 class WikiClient(object):
@@ -332,12 +216,13 @@ class WikiClient(object):
 
         return self.get_url_by_page_id(page_id)
 
-    def get_or_create_page_for_step(self, step_synopsis, lesson_title, lesson_id):
-        content = self._prepare_content(step_synopsis['content'])
-        lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson_title, id=lesson_id)
+    def get_or_create_page_for_step(self, step_with_content, lesson):
+        content = self._prepare_content(step_with_content['content'])
+        lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
         text = STEP_PAGE_TEXT_TEMPLATE.format(content=content, lesson=lesson_page_title)
-        title = STEP_PAGE_TITLE_TEMPLATE.format(position=step_synopsis['position'], id=step_synopsis['step_id'])
-        summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step_synopsis['step_id'])
+        title = STEP_PAGE_TITLE_TEMPLATE.format(position=step_with_content['step']['position'],
+                                                id=step_with_content['step']['id'])
+        summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step_with_content['step']['id'])
 
         page_url = self.get_url_by_page_title(title)
         if page_url:
@@ -359,12 +244,12 @@ class WikiClient(object):
 
         return self._extract_url_from_response(response)
 
-    def get_or_create_page_for_lesson(self, lesson_title, lesson_id):
-        title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson_title, id=lesson_id)
+    def get_or_create_page_for_lesson(self, lesson):
+        title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
         text = LESSON_PAGE_TEXT_TEMPLATE.format(stepik_base=settings.STEPIK_BASE_URL,
-                                                title=lesson_title,
-                                                id=lesson_id)
-        summary = LESSON_PAGE_SUMMARY_TEMPLATE.format(id=lesson_id)
+                                                title=lesson['title'],
+                                                id=lesson['id'])
+        summary = LESSON_PAGE_SUMMARY_TEMPLATE.format(id=lesson['id'])
 
         page_url = self.get_url_by_page_title(title)
         if page_url:
@@ -406,30 +291,40 @@ class WikiClient(object):
         return '\n\n'.join(result)
 
 
-def post_result_on_wiki(result):
+def save_synopsis_to_wiki(synopsis):
     wiki_client = WikiClient(settings.WIKI_LOGIN, settings.WIKI_PASSWORD)
-    lesson = result['lesson']
-    lesson_wiki_url = wiki_client.get_or_create_page_for_lesson(lesson['title'],
-                                                                lesson['lesson_id'])
+    lesson = synopsis['lesson']
+    lesson_wiki_url = wiki_client.get_or_create_page_for_lesson(lesson)
     response = {
-        'synopsis_lessons': [
+        'wiki_url_lesson':
             {
-                'lesson_id': lesson['lesson_id'],
+                'lesson': lesson,
                 'url': lesson_wiki_url
             },
-        ],
-        'synopsis_steps': []
+        'wiki_url_steps': []
     }
 
-    lesson_title = lesson['title']
-    for step_synopsis in result['synopsis_by_steps']:
-        url = wiki_client.get_or_create_page_for_step(step_synopsis, lesson_title, lesson['lesson_id'])
-        response['synopsis_steps'].append(
+    for step_with_content in synopsis['steps']:
+        step_wiki_url = wiki_client.get_or_create_page_for_step(step_with_content, lesson)
+        response['wiki_url_steps'].append(
             {
-                'step_id': step_synopsis['step_id'],
-                'url': url
+                'step': step_with_content['step'],
+                'url': step_wiki_url
             }
         )
 
     logger.info(response)
     return response
+
+
+def validate_data(data):
+    if not len(data) == 2:
+        return False
+
+    if not data.get('type') in SynopsisType.ALL_TYPES:
+        return False
+
+    if not isinstance(data.get('pk'), int):
+        return False
+
+    return True

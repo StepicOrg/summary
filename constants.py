@@ -49,6 +49,8 @@ class SynopsisType(object):
     STEP = 1
     LESSON = 2
 
+    ALL_TYPES = (STEP, LESSON)
+
 
 LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
 LESSON_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\

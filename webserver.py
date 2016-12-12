@@ -6,9 +6,10 @@ import tornado.web
 
 import settings
 from tasks import submit_create_synopsis_task
-from utils import StepikClient
+from utils import StepikClient, validate_data
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 stepik_client = None
 
 
@@ -18,9 +19,13 @@ class MainHandler(tornado.web.RequestHandler):
 
     def post(self, *args, **kwargs):
         try:
+            logger.info(self.request.body)
             data = tornado.escape.json_decode(self.request.body)
+            if not validate_data(data):
+                self.set_status(400)
+                return
         except (TypeError, ValueError):
-            self.set_status(404)
+            self.set_status(400)
             return
 
         submit_create_synopsis_task(stepik_client, data)
@@ -32,7 +37,7 @@ def make_app():
     stepik_client = StepikClient(client_id=settings.STEPIK_CLIENT_ID,
                                  client_secret=settings.STEPIK_CLIENT_SECRET)
     return tornado.web.Application([
-        (r'/', MainHandler),
+        (r'/synopsis', MainHandler),
     ])
 
 

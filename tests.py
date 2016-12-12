@@ -14,16 +14,16 @@ os.environ['ASYNC_TEST_TIMEOUT'] = '200'
 
 
 class FunctionalTest(AsyncHTTPTestCase):
-    def assertPhraseInResult(self, phrase, result):
-        for step_synopsis in result['synopsis_by_steps']:
-            for content_item in step_synopsis['content']:
+    def assertPhraseInResult(self, phrase, synopsis):
+        for step_with_content in synopsis['steps']:
+            for content_item in step_with_content['content']:
                 if content_item['type'] == ContentType.TEXT and phrase in content_item['content']:
                     return
         assert False
 
-    def assertResultHasImg(self, result):
-        for step_synopsis in result['synopsis_by_steps']:
-            for content_item in step_synopsis['content']:
+    def assertResultHasImg(self, synopsis):
+        for step_with_content in synopsis['steps']:
+            for content_item in step_with_content['content']:
                 if content_item['type'] == ContentType.IMG:
                     return
         assert False
@@ -37,27 +37,27 @@ class FunctionalTest(AsyncHTTPTestCase):
         return app
 
     @patch('tasks.pool', new=NewPool())
-    @patch('tasks.post_result_on_wiki')
+    @patch('tasks.save_synopsis_to_wiki')
     # LONG test, ~1min
-    def test_recognize(self, new_post_result_on_wiki):
+    def test_recognize(self, new_save_synopsis_to_wiki):
         real_step_id = 6950
         post_args = {
             'type': SynopsisType.STEP,
             'pk': real_step_id
         }
-        self.fetch('/', method='POST', body=json.dumps(post_args))
+        self.fetch('/synopsis', method='POST', body=json.dumps(post_args))
 
-        self.assertTrue(new_post_result_on_wiki.called)
+        self.assertTrue(new_save_synopsis_to_wiki.called)
 
-        args = new_post_result_on_wiki.call_args[1]
-        result = args['result']
+        args = new_save_synopsis_to_wiki.call_args[1]
+        synopsis = args['synopsis']
 
-        self.assertPhraseInResult('мультипарадигменный', result)
-        self.assertPhraseInResult('низкоуровневый', result)
-        self.assertPhraseInResult('статически типизированный', result)
-        self.assertPhraseInResult('компилируемый', result)
+        self.assertPhraseInResult('мультипарадигменный', synopsis)
+        self.assertPhraseInResult('низкоуровневый', synopsis)
+        self.assertPhraseInResult('статически типизированный', synopsis)
+        self.assertPhraseInResult('компилируемый', synopsis)
 
-        self.assertResultHasImg(result)
+        self.assertResultHasImg(synopsis)
 
     @patch('tasks.pool', new=NewPool())
     @patch('utils.StepikClient.post_results')
