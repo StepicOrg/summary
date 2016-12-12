@@ -401,7 +401,7 @@ class WikiClient(object):
             if item['type'] == ContentType.TEXT:
                 result.append(pypandoc.convert_text(item['content'], format='html', to='mediawiki'))
             elif item['type'] == ContentType.IMG:
-                result.append('{<img width="50%" src="{}">}'.format(item['content']))
+                result.append('<img width="50%" src="{}">'.format(item['content']))
         return '\n\n'.join(result)
 
 
