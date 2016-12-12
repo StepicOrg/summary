@@ -332,7 +332,7 @@ class WikiClient(object):
 
         return self.get_url_by_page_id(page_id)
 
-    def create_page_for_step(self, step_synopsis, lesson_title, lesson_id):
+    def get_or_create_page_for_step(self, step_synopsis, lesson_title, lesson_id):
         content = self._prepare_content(step_synopsis['content'])
         lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson_title, id=lesson_id)
         text = STEP_PAGE_TEXT_TEMPLATE.format(content=content, lesson=lesson_page_title)
@@ -359,7 +359,7 @@ class WikiClient(object):
 
         return self._extract_url_from_response(response)
 
-    def create_page_for_lesson(self, lesson_title, lesson_id):
+    def get_or_create_page_for_lesson(self, lesson_title, lesson_id):
         title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson_title, id=lesson_id)
         text = LESSON_PAGE_TEXT_TEMPLATE.format(stepik_base=settings.STEPIK_BASE_URL,
                                                 title=lesson_title,
@@ -395,7 +395,8 @@ class WikiClient(object):
             raise CreateSynopsisError("Cant extract url from response, response = {}"
                                       .format(response))
 
-    def _prepare_content(self, content):
+    @staticmethod
+    def _prepare_content(content):
         result = []
         for item in content:
             if item['type'] == ContentType.TEXT:
@@ -408,13 +409,11 @@ class WikiClient(object):
 def post_result_on_wiki(result):
     wiki_client = WikiClient(settings.WIKI_LOGIN, settings.WIKI_PASSWORD)
     lesson = result['lesson']
-    lesson_wiki_url = (
-        lesson['lesson_wiki_url'] or wiki_client.create_page_for_lesson(lesson['title'],
-                                                                        lesson['lesson_id']))
+    lesson_wiki_url = wiki_client.get_or_create_page_for_lesson(lesson['title'],
+                                                                lesson['lesson_id'])
     response = {
         'synopsis_lessons': [
             {
-                'pk': lesson['synopsis_id'],
                 'lesson_id': lesson['lesson_id'],
                 'url': lesson_wiki_url
             },
@@ -424,10 +423,10 @@ def post_result_on_wiki(result):
 
     lesson_title = lesson['title']
     for step_synopsis in result['synopsis_by_steps']:
-        url = wiki_client.create_page_for_step(step_synopsis, lesson_title, lesson['lesson_id'])
+        url = wiki_client.get_or_create_page_for_step(step_synopsis, lesson_title, lesson['lesson_id'])
         response['synopsis_steps'].append(
             {
-                'synopsis_info': step_synopsis['synopsis_info'],
+                'step_id': step_synopsis['step_id'],
                 'url': url
             }
         )

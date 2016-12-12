@@ -17,7 +17,6 @@ def submit_create_synopsis_task(stepik_client, data):
 
 def create_synopsis_task(stepik_client, data):
     logger.info('start task with args {}'.format(data))
-
     try:
         if data.get('type') == SynopsisType.LESSON:
             lesson_id = data.get('pk')
@@ -30,11 +29,7 @@ def create_synopsis_task(stepik_client, data):
             steps = [step_id]
         else:
             raise CreateSynopsisError('Wrong data format')
-
-        steps = map(lambda item: stepik_client.get_step_info(item), steps)
-        steps = list(map(lambda item: {'step_info': item,
-                                       'synopsis_info': stepik_client.get_synopsis_step_info(item)},
-                         steps))
+        steps = list(map(stepik_client.get_step_info, steps))
 
         if len(steps) == 0:
             raise CreateSynopsisError('No steps for creation of synopsis')
@@ -43,15 +38,13 @@ def create_synopsis_task(stepik_client, data):
             'lesson': {
                 'title': lesson_info['title'],
                 'lesson_id': lesson_id,
-                'lesson_wiki_url': stepik_client.get_lesson_wiki_url(lesson_info),
-                'synopsis_id': lesson_info['synopsis']
             },
             'synopsis_by_steps': []
         }
-
+        logger.info('num of steps = {}'.format(len(steps)))
         for step in steps:
-            step_info = step['step_info']
-            block = step_info['block']
+            logger.info('step = {}'.format(step))
+            block = step['block']
             if block['text']:
                 content = [
                     {
@@ -66,14 +59,12 @@ def create_synopsis_task(stepik_client, data):
 
             result['synopsis_by_steps'].append(
                 {
-                    'step_id': step_info['id'],
-                    'position': step_info['position'],
+                    'step_id': step['id'],
+                    'position': step['position'],
                     'content': content,
-                    'synopsis_info': step['synopsis_info']
                 }
             )
-        response_for_stepik = post_result_on_wiki(result=result)
-        stepik_client.post_results(status=True, result=response_for_stepik)
-    except CreateSynopsisError as error:
-        stepik_client.post_results(status=False, result={'error': str(error)}, request=data)
+        post_result_on_wiki(result=result)
+    except CreateSynopsisError:
+        logger.exception('CreateSynopsisError')
         return
