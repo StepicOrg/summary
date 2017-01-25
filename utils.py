@@ -16,7 +16,7 @@ import settings
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
                        LESSON_PAGE_TITLE_TEMPLATE, LESSON_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_TITLE_TEMPLATE, STEP_PAGE_TEXT_TEMPLATE,
-                       STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE, ContentType, SynopsisState,
+                       STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE, ContentType,
                        SynopsisType)
 from exceptions import CreateSynopsisError
 from recognize import VideoRecognition, AudioRecognition
@@ -216,13 +216,11 @@ class WikiClient(object):
 
         return self.get_url_by_page_id(page_id)
 
-    def get_or_create_page_for_step(self, step_with_content, lesson):
-        content = self._prepare_content(step_with_content['content'])
+    def get_or_create_page_for_step(self, lesson, step, content):
         lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
-        text = STEP_PAGE_TEXT_TEMPLATE.format(content=content, lesson=lesson_page_title)
-        title = STEP_PAGE_TITLE_TEMPLATE.format(position=step_with_content['step']['position'],
-                                                id=step_with_content['step']['id'])
-        summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step_with_content['step']['id'])
+        text = STEP_PAGE_TEXT_TEMPLATE.format(content=self._prepare_content(content), lesson=lesson_page_title)
+        title = STEP_PAGE_TITLE_TEMPLATE.format(position=step['position'], id=step['id'])
+        summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step['id'])
 
         page_url = self.get_url_by_page_title(title)
         if page_url:
@@ -305,7 +303,9 @@ def save_synopsis_to_wiki(synopsis):
     }
 
     for step_with_content in synopsis['steps']:
-        step_wiki_url = wiki_client.get_or_create_page_for_step(step_with_content, lesson)
+        step_wiki_url = wiki_client.get_or_create_page_for_step(lesson=lesson,
+                                                                step=step_with_content['step'],
+                                                                content=step_with_content['content'])
         response['wiki_url_steps'].append(
             {
                 'step': step_with_content['step'],
@@ -317,7 +317,7 @@ def save_synopsis_to_wiki(synopsis):
     return response
 
 
-def validate_data(data):
+def validate_synopsis_request(data):
     if not len(data) == 2:
         return False
 

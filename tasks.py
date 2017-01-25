@@ -19,7 +19,7 @@ def create_synopsis_task(stepik_client, data):
     logger.info('start task with args %s', data)
     try:
         if data['type'] == SynopsisType.LESSON:
-            lesson_id = data.get('pk')
+            lesson_id = data['pk']
             lesson = stepik_client.get_lesson(lesson_id)
             step_ids = lesson['steps']
         else:
@@ -60,5 +60,5 @@ def create_synopsis_task(stepik_client, data):
             )
         save_synopsis_to_wiki(synopsis=synopsis)
     except CreateSynopsisError:
-        logger.exception('CreateSynopsisError')
+        logger.exception('Failed to create or save synopsis')
         return

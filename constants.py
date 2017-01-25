@@ -38,13 +38,6 @@ class ContentType(object):
     TEXT = 2
 
 
-class SynopsisState(object):
-    DOESNT_EXIST = 1
-    IN_PROGRESS = 2
-    EXIST = 3
-    ERROR = 4
-
-
 class SynopsisType(object):
     STEP = 1
     LESSON = 2

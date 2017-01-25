@@ -6,7 +6,7 @@ import tornado.web
 
 import settings
 from tasks import submit_create_synopsis_task
-from utils import StepikClient, validate_data
+from utils import StepikClient, validate_synopsis_request
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -21,7 +21,7 @@ class MainHandler(tornado.web.RequestHandler):
         try:
             logger.info(self.request.body)
             data = tornado.escape.json_decode(self.request.body)
-            if not validate_data(data):
+            if not validate_synopsis_request(data):
                 self.set_status(400)
                 return
         except (TypeError, ValueError):
