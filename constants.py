@@ -41,9 +41,17 @@ class ContentType(object):
 class SynopsisType(object):
     STEP = 1
     LESSON = 2
+    COURSE = 3
 
-    ALL_TYPES = (STEP, LESSON)
+    ALL_TYPES = (STEP, LESSON, COURSE)
 
+COURSE_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
+COURSE_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
+                              Page for course "{title}" with id = {id}
+                              {stepik_base}/course/{id}
+                              [[Category:Courses]]
+                              """)
+COURSE_PAGE_SUMMARY_TEMPLATE = 'Create page for course id={id}'
 
 LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
 LESSON_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
