@@ -2,34 +2,44 @@ import concurrent.futures
 import logging
 
 import settings
-from constants import ContentType
+from constants import ContentType, SynopsisType
 from exceptions import CreateSynopsisError
-from utils import make_synopsis_from_video, post_result_on_wiki
+from utils import make_synopsis_from_video, save_synopsis_to_wiki
 
 pool = concurrent.futures.ProcessPoolExecutor()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
-def submit_create_synopsis_task(args):
-    pool.submit(create_synopsis_task, args)
+def submit_create_synopsis_task(stepik_client, data):
+    pool.submit(create_synopsis_task, stepik_client, data)
 
 
-def create_synopsis_task(args):
-    logger.info('start task with args {}'.format(args))
-
+def create_synopsis_task(stepik_client, data):
+    logger.info('start task with args %s', data)
     try:
-        lesson_info = args.stepik_client.get_lesson_info(args.lesson_id, args.step_number)
+        if data['type'] == SynopsisType.LESSON:
+            lesson_id = data['pk']
+            lesson = stepik_client.get_lesson(lesson_id)
+            step_ids = lesson['steps']
+        else:
+            step_id = data.get('pk')
+            lesson_id = stepik_client.get_step(step_id)['lesson']
+            lesson = stepik_client.get_lesson(lesson_id)
+            step_ids = [step_id]
 
-        result = {
-            'lesson_title': lesson_info['title'],
-            'lesson_id': args.lesson_id,
-            'lesson_wiki_url': lesson_info['lesson_wiki_url'],
-            'synopsis_by_steps': []
+        if len(step_ids) == 0:
+            raise CreateSynopsisError('No steps for creation of synopsis')
+
+        synopsis = {
+            'lesson': lesson,
+            'steps': []
         }
-
-        for position, step_id in enumerate(lesson_info['steps'], start=1):
-            block = args.stepik_client.get_step_block(step_id)
+        logger.info('num of steps = %d', len(step_ids))
+        for step_id in step_ids:
+            step = stepik_client.get_step(step_id)
+            logger.info('step = %s', step)
+            block = step['block']
             if block['text']:
                 content = [
                     {
@@ -42,15 +52,13 @@ def create_synopsis_task(args):
                                                    upload_care_pub_key=settings.UPLOAD_CARE_PUB_KEY,
                                                    yandex_speech_kit_key=settings.YANDEX_SPEECH_KIT_KEY)
 
-            result['synopsis_by_steps'].append(
+            synopsis['steps'].append(
                 {
-                    'step_id': step_id,
-                    'position': args.step_number or position,
-                    'content': content
+                    'step': step,
+                    'content': content,
                 }
             )
-            response_for_stepik = post_result_on_wiki(result=result)
-            args.stepik_client.post_results(status=True, result=response_for_stepik)
-    except CreateSynopsisError as err:
-        args.stepik_client.post_results(status=False, result=err)
+        save_synopsis_to_wiki(synopsis=synopsis)
+    except CreateSynopsisError:
+        logger.exception('Failed to create or save synopsis')
         return
