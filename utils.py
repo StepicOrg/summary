@@ -350,8 +350,7 @@ class WikiClient(object):
         return self._get_url_by_page_title(title) is not None
 
 
-def save_synopsis_to_wiki(synopsis):
-    wiki_client = WikiClient(settings.WIKI_LOGIN, settings.WIKI_PASSWORD)
+def save_synopsis_to_wiki(wiki_client, synopsis):
     lesson = synopsis['lesson']
     lesson_wiki_url = wiki_client.get_or_create_page_for_lesson(lesson)
     response = {
@@ -378,9 +377,7 @@ def save_synopsis_to_wiki(synopsis):
     return response
 
 
-def add_lesson_to_course(course, lesson):
-    wiki_client = WikiClient(settings.WIKI_LOGIN, settings.WIKI_PASSWORD)
-
+def add_lesson_to_course(wiki_client, course, lesson):
     course_url = wiki_client.get_or_create_page_for_course(course)
     lesson_url = wiki_client.get_or_create_page_for_lesson(lesson)
 
