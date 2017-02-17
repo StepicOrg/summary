@@ -68,3 +68,5 @@ STEP_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                             [[{lesson}]]
                             """)
 STEP_PAGE_SUMMARY_TEMPLATE = 'Create page for step id={id}'
+
+EMPTY_STEP_TEXT = 'Empty step'

@@ -2,7 +2,7 @@ import concurrent.futures
 import logging
 
 import settings
-from constants import ContentType, SynopsisType
+from constants import ContentType, SynopsisType, EMPTY_STEP_TEXT
 from exceptions import CreateSynopsisError
 from utils import make_synopsis_from_video, save_synopsis_to_wiki, add_lesson_to_course
 
@@ -58,23 +58,35 @@ def create_synopsis_for_lesson(lesson, stepik_client):
         step = stepik_client.get_step(step_id)
         synopsis['steps'].append(create_synopsis_for_step(step))
 
+    logger.info('synopsis creation for lesson (id = %s) ended', lesson['id'])
     return synopsis
 
 
 def create_synopsis_for_step(step):
     block = step['block']
     if block['text']:
+        step_type = 'text'
         content = [
             {
                 'type': ContentType.TEXT,
                 'content': block['text']
             },
         ]
-    else:
+    elif block['video']:
+        step_type = 'video'
         content = make_synopsis_from_video(video=block['video'],
                                            upload_care_pub_key=settings.UPLOAD_CARE_PUB_KEY,
                                            yandex_speech_kit_key=settings.YANDEX_SPEECH_KIT_KEY)
+    else:
+        step_type = 'empty'
+        content = [
+            {
+                'type': ContentType.TEXT,
+                'content': EMPTY_STEP_TEXT
+            },
+        ]
 
+    logger.info('synopsis creation for step (id = %s, type = %s) ended', step['id'], step_type)
     return {
         'step': step,
         'content': content,

@@ -171,7 +171,7 @@ class StepikClient(object):
         response = self.session.get('{base_url}/api/courses/{id}'.format(base_url=settings.STEPIK_BASE_URL,
                                                                          id=course_id))
         if not response:
-            raise CreateSynopsisError('Filed to get courses page from stepik, status code = {status_code}'
+            raise CreateSynopsisError('Failed to get courses page from stepik, status code = {status_code}'
                                       .format(status_code=response.status_code))
 
         return response.json()['courses'][0]
@@ -180,7 +180,7 @@ class StepikClient(object):
         response = self.session.get('{base_url}/api/lessons/{id}'.format(base_url=settings.STEPIK_BASE_URL,
                                                                          id=lesson_id))
         if not response:
-            raise CreateSynopsisError('Filed to get lessons page from stepik, status code = {status_code}'
+            raise CreateSynopsisError('Failed to get lessons page from stepik, status code = {status_code}'
                                       .format(status_code=response.status_code))
 
         return response.json()['lessons'][0]
@@ -194,7 +194,7 @@ class StepikClient(object):
                                                 course_id=course_id,
                                                 page=cur_page))
             if not response:
-                raise CreateSynopsisError('Filed to get lessons page from stepik, status code = {status_code}'
+                raise CreateSynopsisError('Failed to get lessons page from stepik, status code = {status_code}'
                                           .format(status_code=response.status_code))
             lessons.extend(response.json()['lessons'])
 
@@ -207,7 +207,7 @@ class StepikClient(object):
         response = self.session.get('{base_url}/api/steps/{id}'.format(base_url=settings.STEPIK_BASE_URL,
                                                                        id=step_id))
         if not response:
-            raise CreateSynopsisError('Filed to get steps page from stepik, status code = {status_code}'
+            raise CreateSynopsisError('Failed to get steps page from stepik, status code = {status_code}'
                                       .format(status_code=response.status_code))
 
         return response.json()['steps'][0]
@@ -268,7 +268,9 @@ class WikiClient(object):
             logger.exception('mwapi.errors.APIError: articleexists: - its OK')
             return self.get_url_by_page_title(title)
 
-        return self._extract_url_from_response(response)
+        page_url = self._extract_url_from_response(response)
+        logger.info('created page for step (step_id = %s, page_url = %s)', step['id'], page_url)
+        return page_url
 
     def get_or_create_page_for_lesson(self, lesson):
         title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
@@ -295,7 +297,9 @@ class WikiClient(object):
             logger.exception('mwapi.errors.APIError: articleexists: - its OK')
             return self.get_url_by_page_title(title)
 
-        return self._extract_url_from_response(response)
+        page_url = self._extract_url_from_response(response)
+        logger.info('created page for lesson (lesson_id = %s, page_url = %s)', lesson['id'], page_url)
+        return page_url
 
     def get_or_create_page_for_course(self, course):
         title = COURSE_PAGE_TITLE_TEMPLATE.format(title=course['title'], id=course['id'])
@@ -322,7 +326,9 @@ class WikiClient(object):
             logger.exception('mwapi.errors.APIError: articleexists: - its OK')
             return self.get_url_by_page_title(title)
 
-        return self._extract_url_from_response(response)
+        page_url = self._extract_url_from_response(response)
+        logger.info('created page for course (course_id = %s, page_url = %s)', course['id'], page_url)
+        return page_url
 
     def _extract_url_from_response(self, response):
         if response['edit']['result'] == 'Success':
@@ -360,7 +366,6 @@ class WikiClient(object):
                                         titles=page_title,
                                         prop='categories')
             pages = response['query']['pages']
-            logger.info(response)
             categories = list(map(lambda item: item['title'], list(pages.values())[0].get('categories', [])))
             return categories
         except Exception as e:
@@ -391,7 +396,7 @@ def save_synopsis_to_wiki(synopsis):
             }
         )
 
-    logger.info(response)
+    logger.info('wiki urls', response)
     return response
 
 

@@ -19,12 +19,14 @@ class MainHandler(tornado.web.RequestHandler):
 
     def post(self, *args, **kwargs):
         try:
-            logger.info(self.request.body)
+            logger.info('received request: %s\nbody: %s', self.request, self.request.body)
             data = tornado.escape.json_decode(self.request.body)
             if not validate_synopsis_request(data):
+                logger.error('invalid request data')
                 self.set_status(400)
                 return
         except (TypeError, ValueError):
+            logger.error('request must be in json format')
             self.set_status(400)
             return
 
