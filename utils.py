@@ -224,52 +224,14 @@ class WikiClient(object):
             logger.exception(msg)
             raise CreateSynopsisError('msg={}; error={}'.format(msg, e))
 
-    def get_url_by_page_id(self, page_id):
-        try:
-            response = self.session.get(action='query', prop='info', pageids=page_id, inprop='url')
-        except (APIError, RequestException) as e:
-            raise CreateSynopsisError(str(e))
-        url = response['query']['pages'][str(page_id)]['fullurl']
-        return url
-
-    def get_url_by_page_title(self, title):
-        try:
-            response = self.session.post(action='query', titles=title)
-        except (APIError, RequestException) as e:
-            raise CreateSynopsisError(str(e))
-
-        page_id = int(list(response['query']['pages'])[0])
-        if page_id < 0:
-            return None
-
-        return self.get_url_by_page_id(page_id)
-
     def get_or_create_page_for_step(self, lesson, step, content):
         lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
         text = STEP_PAGE_TEXT_TEMPLATE.format(content=self._prepare_content(content), lesson=lesson_page_title)
         title = STEP_PAGE_TITLE_TEMPLATE.format(position=step['position'], id=step['id'])
         summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step['id'])
 
-        page_url = self.get_url_by_page_title(title)
-        if page_url:
-            return page_url
-
-        try:
-            response = self.session.post(action='edit',
-                                         title=title,
-                                         section=0,
-                                         summary=summary,
-                                         text=text,
-                                         token=self.token,
-                                         createonly=True)
-        except RequestException as e:
-            raise CreateSynopsisError(str(e))
-        except APIError:
-            logger.exception('mwapi.errors.APIError: articleexists: - its OK')
-            return self.get_url_by_page_title(title)
-
-        page_url = self._extract_url_from_response(response)
-        logger.info('created page for step (step_id = %s, page_url = %s)', step['id'], page_url)
+        page_url = self._get_or_create_page(title, text, summary)
+        logger.info('page for step (step_id = %s, page_url = %s)', step['id'], page_url)
         return page_url
 
     def get_or_create_page_for_lesson(self, lesson):
@@ -279,26 +241,8 @@ class WikiClient(object):
                                                 id=lesson['id'])
         summary = LESSON_PAGE_SUMMARY_TEMPLATE.format(id=lesson['id'])
 
-        page_url = self.get_url_by_page_title(title)
-        if page_url:
-            return page_url
-
-        try:
-            response = self.session.post(action='edit',
-                                         title=title,
-                                         section=0,
-                                         summary=summary,
-                                         text=text,
-                                         token=self.token,
-                                         createonly=True)
-        except RequestException as e:
-            raise CreateSynopsisError(str(e))
-        except APIError:
-            logger.exception('mwapi.errors.APIError: articleexists: - its OK')
-            return self.get_url_by_page_title(title)
-
-        page_url = self._extract_url_from_response(response)
-        logger.info('created page for lesson (lesson_id = %s, page_url = %s)', lesson['id'], page_url)
+        page_url = self._get_or_create_page(title, text, summary)
+        logger.info('page for lesson (lesson_id = %s, page_url = %s)', lesson['id'], page_url)
         return page_url
 
     def get_or_create_page_for_course(self, course):
@@ -308,46 +252,13 @@ class WikiClient(object):
                                                 id=course['id'])
         summary = COURSE_PAGE_SUMMARY_TEMPLATE.format(id=course['id'])
 
-        page_url = self.get_url_by_page_title(title)
-        if page_url:
-            return page_url
-
-        try:
-            response = self.session.post(action='edit',
-                                         title=title,
-                                         section=0,
-                                         summary=summary,
-                                         text=text,
-                                         token=self.token,
-                                         createonly=True)
-        except RequestException as e:
-            raise CreateSynopsisError(str(e))
-        except APIError:
-            logger.exception('mwapi.errors.APIError: articleexists: - its OK')
-            return self.get_url_by_page_title(title)
-
-        page_url = self._extract_url_from_response(response)
-        logger.info('created page for course (course_id = %s, page_url = %s)', course['id'], page_url)
+        page_url = self._get_or_create_page(title, text, summary)
+        logger.info('page for course (course_id = %s, page_url = %s)', course['id'], page_url)
         return page_url
 
-    def _extract_url_from_response(self, response):
-        if response['edit']['result'] == 'Success':
-            page_id = response['edit']['pageid']
-            url = self.get_url_by_page_id(page_id)
-            return url
-        else:
-            raise CreateSynopsisError("Cant extract url from response, response = {}"
-                                      .format(response))
-
-    @staticmethod
-    def _prepare_content(content):
-        result = []
-        for item in content:
-            if item['type'] == ContentType.TEXT:
-                result.append(pypandoc.convert_text(item['content'], format='html', to='mediawiki'))
-            elif item['type'] == ContentType.IMG:
-                result.append('<img width="50%" src="{}">'.format(item['content']))
-        return '\n\n'.join(result)
+    def is_page_for_step_exist(self, step):
+        title = STEP_PAGE_TITLE_TEMPLATE.format(position=step['position'], id=step['id'])
+        return self._is_page_with_title_exist(title)
 
     def add_text_to_page(self, page_title, text, summary):
         try:
@@ -370,6 +281,73 @@ class WikiClient(object):
             return categories
         except Exception as e:
             raise CreateSynopsisError(str(e))
+
+    def _get_or_create_page(self, title, text, summary):
+        if self._is_page_with_title_exist(title):
+            return self._get_url_by_page_title(title)
+
+        return self._create_page(title, text, summary)
+
+    def _create_page(self, title, text, summary):
+        try:
+            response = self.session.post(action='edit',
+                                         title=title,
+                                         section=0,
+                                         summary=summary,
+                                         text=text,
+                                         token=self.token,
+                                         createonly=True)
+        except RequestException as e:
+            raise CreateSynopsisError(str(e))
+        except APIError:
+            logger.exception('mwapi.errors.APIError: articleexists: - its OK')
+            return self._get_url_by_page_title(title)
+
+        page_url = self._extract_url_from_response(response)
+        logger.info('created page with url %s', page_url)
+        return page_url
+
+    def _get_url_by_page_id(self, page_id):
+        try:
+            response = self.session.get(action='query', prop='info', pageids=page_id, inprop='url')
+        except (APIError, RequestException) as e:
+            raise CreateSynopsisError(str(e))
+        url = response['query']['pages'][str(page_id)]['fullurl']
+        return url
+
+    def _get_url_by_page_title(self, title):
+        try:
+            response = self.session.post(action='query', titles=title)
+        except (APIError, RequestException) as e:
+            raise CreateSynopsisError(str(e))
+
+        page_id = int(list(response['query']['pages'])[0])
+        if page_id < 0:
+            return None
+
+        return self._get_url_by_page_id(page_id)
+
+    def _extract_url_from_response(self, response):
+        if response['edit']['result'] == 'Success':
+            page_id = response['edit']['pageid']
+            url = self._get_url_by_page_id(page_id)
+            return url
+        else:
+            raise CreateSynopsisError("Cant extract url from response, response = {}"
+                                      .format(response))
+
+    @staticmethod
+    def _prepare_content(content):
+        result = []
+        for item in content:
+            if item['type'] == ContentType.TEXT:
+                result.append(pypandoc.convert_text(item['content'], format='html', to='mediawiki'))
+            elif item['type'] == ContentType.IMG:
+                result.append('<img width="50%" src="{}">'.format(item['content']))
+        return '\n\n'.join(result)
+
+    def _is_page_with_title_exist(self, title):
+        return self._get_url_by_page_title(title) is not None
 
 
 def save_synopsis_to_wiki(synopsis):
