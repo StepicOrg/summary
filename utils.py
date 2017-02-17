@@ -402,4 +402,7 @@ def validate_synopsis_request(data):
     if not isinstance(data.get('pk'), int):
         return False
 
+    if data['pk'] <= 0:
+        return False
+
     return True
