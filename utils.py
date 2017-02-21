@@ -17,7 +17,8 @@ from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFM
                        LESSON_PAGE_TITLE_TEMPLATE, LESSON_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_TITLE_TEMPLATE, STEP_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE, ContentType,
-                       SynopsisType)
+                       SynopsisType, COURSE_PAGE_TITLE_TEMPLATE, COURSE_PAGE_TEXT_TEMPLATE,
+                       COURSE_PAGE_SUMMARY_TEMPLATE)
 from exceptions import CreateSynopsisError
 from recognize import VideoRecognition, AudioRecognition
 
@@ -166,20 +167,47 @@ class StepikClient(object):
         self.session = requests.Session()
         self.session.headers.update({'Authorization': 'Bearer ' + self.token})
 
+    def get_course(self, course_id):
+        response = self.session.get('{base_url}/api/courses/{id}'.format(base_url=settings.STEPIK_BASE_URL,
+                                                                         id=course_id))
+        if not response:
+            raise CreateSynopsisError('Failed to get courses page from stepik, status code = {status_code}'
+                                      .format(status_code=response.status_code))
+
+        return response.json()['courses'][0]
+
     def get_lesson(self, lesson_id):
         response = self.session.get('{base_url}/api/lessons/{id}'.format(base_url=settings.STEPIK_BASE_URL,
                                                                          id=lesson_id))
         if not response:
-            raise CreateSynopsisError('Filed to get lessons page from stepik, status code = {status_code}'
+            raise CreateSynopsisError('Failed to get lessons page from stepik, status code = {status_code}'
                                       .format(status_code=response.status_code))
 
         return response.json()['lessons'][0]
+
+    def get_lessons_by_course(self, course_id):
+        lessons = []
+        cur_page = 1
+        while True:
+            response = self.session.get('{base_url}/api/lessons?course={course_id}&page={page}'
+                                        .format(base_url=settings.STEPIK_BASE_URL,
+                                                course_id=course_id,
+                                                page=cur_page))
+            if not response:
+                raise CreateSynopsisError('Failed to get lessons page from stepik, status code = {status_code}'
+                                          .format(status_code=response.status_code))
+            lessons.extend(response.json()['lessons'])
+
+            if not response.json()['meta']['has_next']:
+                return lessons
+
+            cur_page += 1
 
     def get_step(self, step_id):
         response = self.session.get('{base_url}/api/steps/{id}'.format(base_url=settings.STEPIK_BASE_URL,
                                                                        id=step_id))
         if not response:
-            raise CreateSynopsisError('Filed to get steps page from stepik, status code = {status_code}'
+            raise CreateSynopsisError('Failed to get steps page from stepik, status code = {status_code}'
                                       .format(status_code=response.status_code))
 
         return response.json()['steps'][0]
@@ -240,7 +268,9 @@ class WikiClient(object):
             logger.exception('mwapi.errors.APIError: articleexists: - its OK')
             return self.get_url_by_page_title(title)
 
-        return self._extract_url_from_response(response)
+        page_url = self._extract_url_from_response(response)
+        logger.info('created page for step (step_id = %s, page_url = %s)', step['id'], page_url)
+        return page_url
 
     def get_or_create_page_for_lesson(self, lesson):
         title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
@@ -267,7 +297,38 @@ class WikiClient(object):
             logger.exception('mwapi.errors.APIError: articleexists: - its OK')
             return self.get_url_by_page_title(title)
 
-        return self._extract_url_from_response(response)
+        page_url = self._extract_url_from_response(response)
+        logger.info('created page for lesson (lesson_id = %s, page_url = %s)', lesson['id'], page_url)
+        return page_url
+
+    def get_or_create_page_for_course(self, course):
+        title = COURSE_PAGE_TITLE_TEMPLATE.format(title=course['title'], id=course['id'])
+        text = COURSE_PAGE_TEXT_TEMPLATE.format(stepik_base=settings.STEPIK_BASE_URL,
+                                                title=course['title'],
+                                                id=course['id'])
+        summary = COURSE_PAGE_SUMMARY_TEMPLATE.format(id=course['id'])
+
+        page_url = self.get_url_by_page_title(title)
+        if page_url:
+            return page_url
+
+        try:
+            response = self.session.post(action='edit',
+                                         title=title,
+                                         section=0,
+                                         summary=summary,
+                                         text=text,
+                                         token=self.token,
+                                         createonly=True)
+        except RequestException as e:
+            raise CreateSynopsisError(str(e))
+        except APIError:
+            logger.exception('mwapi.errors.APIError: articleexists: - its OK')
+            return self.get_url_by_page_title(title)
+
+        page_url = self._extract_url_from_response(response)
+        logger.info('created page for course (course_id = %s, page_url = %s)', course['id'], page_url)
+        return page_url
 
     def _extract_url_from_response(self, response):
         if response['edit']['result'] == 'Success':
@@ -287,6 +348,28 @@ class WikiClient(object):
             elif item['type'] == ContentType.IMG:
                 result.append('<img width="50%" src="{}">'.format(item['content']))
         return '\n\n'.join(result)
+
+    def add_text_to_page(self, page_title, text, summary):
+        try:
+            self.session.post(action='edit',
+                              title=page_title,
+                              summary=summary,
+                              appendtext=text,
+                              token=self.token,
+                              nocreate=True)
+        except Exception as e:
+            raise CreateSynopsisError(str(e))
+
+    def get_page_categories(self, page_title):
+        try:
+            response = self.session.get(action='query',
+                                        titles=page_title,
+                                        prop='categories')
+            pages = response['query']['pages']
+            categories = list(map(lambda item: item['title'], list(pages.values())[0].get('categories', [])))
+            return categories
+        except Exception as e:
+            raise CreateSynopsisError(str(e))
 
 
 def save_synopsis_to_wiki(synopsis):
@@ -313,8 +396,25 @@ def save_synopsis_to_wiki(synopsis):
             }
         )
 
-    logger.info(response)
+    logger.info('wiki urls', response)
     return response
+
+
+def add_lesson_to_course(course, lesson):
+    wiki_client = WikiClient(settings.WIKI_LOGIN, settings.WIKI_PASSWORD)
+
+    course_url = wiki_client.get_or_create_page_for_course(course)
+    lesson_url = wiki_client.get_or_create_page_for_lesson(lesson)
+
+    logger.info('add lesson {lesson} to course {course}'.format(lesson=lesson_url, course=course_url))
+
+    course_page_title = COURSE_PAGE_TITLE_TEMPLATE.format(title=course['title'], id=course['id'])
+    lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
+
+    course_link = '[[{}]]'.format(course_page_title)
+    lesson_categories = wiki_client.get_page_categories(lesson_page_title)
+    if course_page_title not in lesson_categories:
+        wiki_client.add_text_to_page(lesson_page_title, course_link, 'add lesson to course')
 
 
 def validate_synopsis_request(data):
