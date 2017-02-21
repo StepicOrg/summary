@@ -48,7 +48,10 @@ class SynopsisType(object):
 COURSE_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
 COURSE_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                               Page for course "{title}" with id = {id}
+
                               {stepik_base}/course/{id}
+
+                              {{{{#categorytree:{{{{PAGENAME}}}}}}}}
                               [[Category:Courses]]
                               """)
 COURSE_PAGE_SUMMARY_TEMPLATE = 'Create page for course id={id}'
@@ -56,7 +59,10 @@ COURSE_PAGE_SUMMARY_TEMPLATE = 'Create page for course id={id}'
 LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
 LESSON_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                               Page for lesson "{title}" with id = {id}
+
                               {stepik_base}/lesson/{id}
+
+                              {{{{#categorytree:{{{{PAGENAME}}}}}}}}
                               [[Category:Lessons]]
                               """)
 LESSON_PAGE_SUMMARY_TEMPLATE = 'Create page for lesson id={id}'
@@ -64,6 +70,7 @@ LESSON_PAGE_SUMMARY_TEMPLATE = 'Create page for lesson id={id}'
 STEP_PAGE_TITLE_TEMPLATE = 'Step {position} ({id})'
 STEP_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                             {content}
+
                             [[Category:Steps]]
                             [[{lesson}]]
                             """)
