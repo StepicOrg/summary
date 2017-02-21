@@ -373,7 +373,7 @@ def save_synopsis_to_wiki(wiki_client, synopsis):
             }
         )
 
-    logger.info('wiki urls', response)
+    logger.info('wiki urls %s', response)
     return response
 
 

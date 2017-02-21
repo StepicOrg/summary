@@ -8,6 +8,7 @@ import settings
 from tasks import submit_create_synopsis_task
 from utils import StepikClient, validate_synopsis_request
 
+logging.basicConfig(format='[%(asctime)s]%(levelname)s:%(name)s:%(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 stepik_client = None

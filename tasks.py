@@ -44,8 +44,10 @@ def create_synopsis_task(stepik_client, data):
                 ]
             }
             save_synopsis_to_wiki(wiki_client, synopsis)
+
+        logger.info('task with args %s completed', data)
     except CreateSynopsisError:
-        logger.exception('Failed to create or save synopsis')
+        logger.exception('task with args %s failed', data)
         return
 
 
