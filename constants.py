@@ -41,9 +41,10 @@ class ContentType(object):
 class SynopsisType(object):
     STEP = 1
     LESSON = 2
-    COURSE = 3
+    SECTION = 3
+    COURSE = 4
 
-    ALL_TYPES = (STEP, LESSON, COURSE)
+    ALL_TYPES = (STEP, LESSON, SECTION, COURSE)
 
 COURSE_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
 COURSE_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
@@ -55,6 +56,15 @@ COURSE_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                               [[Category:Courses]]
                               """)
 COURSE_PAGE_SUMMARY_TEMPLATE = 'Create page for course id={id}'
+
+SECTION_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
+SECTION_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
+                              Page for module "{title}" with id = {id}
+
+                              {{{{#categorytree:{{{{PAGENAME}}}}}}}}
+                              [[Category:Sections]]
+                              """)
+SECTION_PAGE_SUMMARY_TEMPLATE = 'Create page for section id={id}'
 
 LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
 LESSON_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
