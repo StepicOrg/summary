@@ -11,7 +11,6 @@ from utils import StepikClient, validate_synopsis_request
 logging.basicConfig(format='[%(asctime)s]%(levelname)s:%(name)s:%(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-stepik_client = None
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -31,14 +30,11 @@ class MainHandler(tornado.web.RequestHandler):
             self.set_status(400)
             return
 
-        submit_create_synopsis_task(stepik_client, data)
+        submit_create_synopsis_task(data)
         self.set_status(200)
 
 
 def make_app():
-    global stepik_client
-    stepik_client = StepikClient(client_id=settings.STEPIK_CLIENT_ID,
-                                 client_secret=settings.STEPIK_CLIENT_SECRET)
     return tornado.web.Application([
         (r'/synopsis', MainHandler),
     ])

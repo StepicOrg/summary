@@ -1,5 +1,4 @@
 import argparse
-import json
 import logging
 import os
 import subprocess
@@ -24,6 +23,24 @@ from recognize import VideoRecognition, AudioRecognition
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+_stepik_client = None
+_wiki_client = None
+
+
+def get_stepik_client():
+    global _stepik_client
+    if _stepik_client is None:
+        _stepik_client = StepikClient(client_id=settings.STEPIK_CLIENT_ID,
+                                      client_secret=settings.STEPIK_CLIENT_SECRET)
+    return _stepik_client
+
+
+def get_wiki_client():
+    global _wiki_client
+    if _wiki_client is None:
+        _wiki_client = WikiClient(settings.WIKI_LOGIN, settings.WIKI_PASSWORD)
+    return _wiki_client
 
 
 def merge_audio_and_video(keyframes, recognized_audio):
@@ -350,7 +367,8 @@ class WikiClient(object):
         return self._get_url_by_page_title(title) is not None
 
 
-def save_synopsis_to_wiki(wiki_client, synopsis):
+def save_synopsis_to_wiki(synopsis):
+    wiki_client = get_wiki_client()
     lesson = synopsis['lesson']
     lesson_wiki_url = wiki_client.get_or_create_page_for_lesson(lesson)
     response = {
@@ -377,7 +395,9 @@ def save_synopsis_to_wiki(wiki_client, synopsis):
     return response
 
 
-def add_lesson_to_course(wiki_client, course, lesson):
+def add_lesson_to_course(course, lesson):
+    wiki_client = get_wiki_client()
+
     course_url = wiki_client.get_or_create_page_for_course(course)
     lesson_url = wiki_client.get_or_create_page_for_lesson(lesson)
 
