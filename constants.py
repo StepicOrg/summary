@@ -87,3 +87,8 @@ STEP_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
 STEP_PAGE_SUMMARY_TEMPLATE = 'Create page for step id={id}'
 
 EMPTY_STEP_TEXT = 'Empty step'
+
+SINGLE_DOLLAR_TO_MATH_PATTERN = r'([^\\\$]|^)(?:\$)((?:[^\\\$]|\\.)+)(?:\$)($|[^\$])'
+SINGLE_DOLLAR_TO_MATH_REPLACE = r'\1<math>\2</math>\3'
+DOUBLE_DOLLAR_TO_MATH_PATTERN = r'([^\\\$]|^)(?:\$\$)((?:[^\\\$]|\\.)+)(?:\$\$)($|[^\$])'
+DOUBLE_DOLLAR_TO_MATH_REPLACE = r'\1\n\n<math>\2</math>\n\n\3'
