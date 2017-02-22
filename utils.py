@@ -186,29 +186,29 @@ class StepikClient(object):
         self.session.headers.update({'Authorization': 'Bearer ' + self.token})
 
     def get_course(self, course_id):
-        return self._get_object('course', course_id)
+        return self._get_object('courses', course_id)
 
     def get_section(self, section_id):
-        return self._get_object('section', section_id)
+        return self._get_object('sections', section_id)
 
     def get_unit(self, unit_id):
-        return self._get_object('unit', unit_id)
+        return self._get_object('units', unit_id)
 
     def get_lesson(self, lesson_id):
-        return self._get_object('lesson', lesson_id)
+        return self._get_object('lessons', lesson_id)
 
     def get_step(self, step_id):
-        return self._get_object('step', step_id)
+        return self._get_object('steps', step_id)
 
     def _get_object(self, object_type, object_id):
-        response = self.session.get('{base_url}/api/{type}s/{id}'.format(base_url=settings.STEPIK_BASE_URL,
-                                                                         type=object_type,
-                                                                         id=object_id))
+        response = self.session.get('{base_url}/api/{type}/{id}'.format(base_url=settings.STEPIK_BASE_URL,
+                                                                        type=object_type,
+                                                                        id=object_id))
         if not response:
             raise CreateSynopsisError('Failed to get {type} page from stepik, status code = {status_code}'
                                       .format(type=object_type, status_code=response.status_code))
 
-        return response.json()['{}s'.format(object_type)][0]
+        return response.json()[object_type][0]
 
 
 class WikiClient(object):
