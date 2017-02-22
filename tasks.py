@@ -45,9 +45,6 @@ def create_synopsis_task(data):
         logger.exception('task with args %s failed', data)
         return
 
-    except Exception:
-        logger.exception('task with args %s failed', data)
-
 
 def create_synopsis_task_for_course(course):
     stepik_client = get_stepik_client()
@@ -55,7 +52,6 @@ def create_synopsis_task_for_course(course):
     for section_id in course['sections']:
         section = stepik_client.get_section(section_id)
         create_synopsis_task_for_section(section)
-        add_section_to_course(section, course)
 
 
 def create_synopsis_task_for_section(section):
@@ -68,7 +64,7 @@ def create_synopsis_task_for_section(section):
         lesson = stepik_client.get_lesson(unit['lesson'])
         synopsis = create_synopsis_for_lesson(lesson)
         save_synopsis_for_lesson_to_wiki(synopsis)
-        add_lesson_to_section(lesson, section)
+        add_lesson_to_section(lesson, unit['position'], section)
 
     add_section_to_course(section, course)
 

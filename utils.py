@@ -224,7 +224,9 @@ class WikiClient(object):
 
     def get_or_create_page_for_step(self, lesson, step, content):
         lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
-        text = STEP_PAGE_TEXT_TEMPLATE.format(content=self._prepare_content(content), lesson=lesson_page_title)
+        text = STEP_PAGE_TEXT_TEMPLATE.format(content=self._prepare_content(content),
+                                              lesson=lesson_page_title,
+                                              position=step['position'])
         title = STEP_PAGE_TITLE_TEMPLATE.format(position=step['position'], id=step['id'])
         summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step['id'])
 
@@ -272,7 +274,7 @@ class WikiClient(object):
             self.session.post(action='edit',
                               title=page_title,
                               summary=summary,
-                              appendtext=text,
+                              appendtext='\n{}'.format(text),
                               token=self.token,
                               nocreate=True)
         except Exception as e:
@@ -389,7 +391,7 @@ def add_section_to_course(section, course):
     wiki_client = get_wiki_client()
 
     section_url = wiki_client.get_or_create_page_for_section(section)
-    course_url = wiki_client.get_or_create_page_for_lesson(course)
+    course_url = wiki_client.get_or_create_page_for_course(course)
 
     logger.info('add section {section} to course {course}'.format(section=section_url,
                                                                   course=course_url))
@@ -399,12 +401,14 @@ def add_section_to_course(section, course):
 
     section_categories = wiki_client.get_page_categories(section_page_title)
     if course_page_title not in section_categories:
+        course_link = '[[{title}|{position:>3}]]'.format(title=course_page_title,
+                                                         position=section['position'])
         wiki_client.add_text_to_page(page_title=section_page_title,
-                                     text='[[{}]]'.format(course_page_title),
+                                     text=course_link,
                                      summary='add section to course')
 
 
-def add_lesson_to_section(lesson, section):
+def add_lesson_to_section(lesson, lesson_position, section):
     wiki_client = get_wiki_client()
 
     lesson_url = wiki_client.get_or_create_page_for_lesson(lesson)
@@ -418,8 +422,10 @@ def add_lesson_to_section(lesson, section):
 
     lesson_categories = wiki_client.get_page_categories(lesson_page_title)
     if section_page_title not in lesson_categories:
+        section_link = '[[{title}|{position:>3}]]'.format(title=section_page_title,
+                                                          position=lesson_position)
         wiki_client.add_text_to_page(page_title=lesson_page_title,
-                                     text='[[{}]]'.format(section_page_title),
+                                     text=section_link,
                                      summary='add lesson to section')
 
 

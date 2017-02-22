@@ -82,7 +82,7 @@ STEP_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                             {content}
 
                             [[Category:Steps]]
-                            [[{lesson}]]
+                            [[{lesson}|{position:>3}]]
                             """)
 STEP_PAGE_SUMMARY_TEMPLATE = 'Create page for step id={id}'
 
