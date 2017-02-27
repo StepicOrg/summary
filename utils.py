@@ -17,7 +17,8 @@ from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFM
                        STEP_PAGE_TITLE_TEMPLATE, STEP_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE, ContentType,
                        SynopsisType, COURSE_PAGE_TITLE_TEMPLATE, COURSE_PAGE_TEXT_TEMPLATE,
-                       COURSE_PAGE_SUMMARY_TEMPLATE)
+                       COURSE_PAGE_SUMMARY_TEMPLATE, SECTION_PAGE_TITLE_TEMPLATE, SECTION_PAGE_TEXT_TEMPLATE,
+                       SECTION_PAGE_SUMMARY_TEMPLATE)
 from exceptions import CreateSynopsisError
 from recognize import VideoRecognition, AudioRecognition
 
@@ -185,49 +186,29 @@ class StepikClient(object):
         self.session.headers.update({'Authorization': 'Bearer ' + self.token})
 
     def get_course(self, course_id):
-        response = self.session.get('{base_url}/api/courses/{id}'.format(base_url=settings.STEPIK_BASE_URL,
-                                                                         id=course_id))
-        if not response:
-            raise CreateSynopsisError('Failed to get courses page from stepik, status code = {status_code}'
-                                      .format(status_code=response.status_code))
+        return self._get_object('courses', course_id)
 
-        return response.json()['courses'][0]
+    def get_section(self, section_id):
+        return self._get_object('sections', section_id)
+
+    def get_unit(self, unit_id):
+        return self._get_object('units', unit_id)
 
     def get_lesson(self, lesson_id):
-        response = self.session.get('{base_url}/api/lessons/{id}'.format(base_url=settings.STEPIK_BASE_URL,
-                                                                         id=lesson_id))
-        if not response:
-            raise CreateSynopsisError('Failed to get lessons page from stepik, status code = {status_code}'
-                                      .format(status_code=response.status_code))
-
-        return response.json()['lessons'][0]
-
-    def get_lessons_by_course(self, course_id):
-        lessons = []
-        cur_page = 1
-        while True:
-            response = self.session.get('{base_url}/api/lessons?course={course_id}&page={page}'
-                                        .format(base_url=settings.STEPIK_BASE_URL,
-                                                course_id=course_id,
-                                                page=cur_page))
-            if not response:
-                raise CreateSynopsisError('Failed to get lessons page from stepik, status code = {status_code}'
-                                          .format(status_code=response.status_code))
-            lessons.extend(response.json()['lessons'])
-
-            if not response.json()['meta']['has_next']:
-                return lessons
-
-            cur_page += 1
+        return self._get_object('lessons', lesson_id)
 
     def get_step(self, step_id):
-        response = self.session.get('{base_url}/api/steps/{id}'.format(base_url=settings.STEPIK_BASE_URL,
-                                                                       id=step_id))
-        if not response:
-            raise CreateSynopsisError('Failed to get steps page from stepik, status code = {status_code}'
-                                      .format(status_code=response.status_code))
+        return self._get_object('steps', step_id)
 
-        return response.json()['steps'][0]
+    def _get_object(self, object_type, object_id):
+        response = self.session.get('{base_url}/api/{type}/{id}'.format(base_url=settings.STEPIK_BASE_URL,
+                                                                        type=object_type,
+                                                                        id=object_id))
+        if not response:
+            raise CreateSynopsisError('Failed to get {type} page from stepik, status code = {status_code}'
+                                      .format(type=object_type, status_code=response.status_code))
+
+        return response.json()[object_type][0]
 
 
 class WikiClient(object):
@@ -243,7 +224,9 @@ class WikiClient(object):
 
     def get_or_create_page_for_step(self, lesson, step, content):
         lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
-        text = STEP_PAGE_TEXT_TEMPLATE.format(content=self._prepare_content(content), lesson=lesson_page_title)
+        text = STEP_PAGE_TEXT_TEMPLATE.format(content=self._prepare_content(content),
+                                              lesson=lesson_page_title,
+                                              position=step['position'])
         title = STEP_PAGE_TITLE_TEMPLATE.format(position=step['position'], id=step['id'])
         summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step['id'])
 
@@ -260,6 +243,15 @@ class WikiClient(object):
 
         page_url = self._get_or_create_page(title, text, summary)
         logger.info('page for lesson (lesson_id = %s, page_url = %s)', lesson['id'], page_url)
+        return page_url
+
+    def get_or_create_page_for_section(self, section):
+        title = SECTION_PAGE_TITLE_TEMPLATE.format(title=section['title'], id=section['id'])
+        text = SECTION_PAGE_TEXT_TEMPLATE.format(title=section['title'], id=section['id'])
+        summary = SECTION_PAGE_SUMMARY_TEMPLATE.format(id=section['id'])
+
+        page_url = self._get_or_create_page(title, text, summary)
+        logger.info('page for section (section_id = %s, page_url = %s)', section['id'], page_url)
         return page_url
 
     def get_or_create_page_for_course(self, course):
@@ -282,7 +274,7 @@ class WikiClient(object):
             self.session.post(action='edit',
                               title=page_title,
                               summary=summary,
-                              appendtext=text,
+                              appendtext='\n{}'.format(text),
                               token=self.token,
                               nocreate=True)
         except Exception as e:
@@ -367,7 +359,7 @@ class WikiClient(object):
         return self._get_url_by_page_title(title) is not None
 
 
-def save_synopsis_to_wiki(synopsis):
+def save_synopsis_for_lesson_to_wiki(synopsis):
     wiki_client = get_wiki_client()
     lesson = synopsis['lesson']
     lesson_wiki_url = wiki_client.get_or_create_page_for_lesson(lesson)
@@ -395,21 +387,46 @@ def save_synopsis_to_wiki(synopsis):
     return response
 
 
-def add_lesson_to_course(course, lesson):
+def add_section_to_course(section, course):
     wiki_client = get_wiki_client()
 
+    section_url = wiki_client.get_or_create_page_for_section(section)
     course_url = wiki_client.get_or_create_page_for_course(course)
-    lesson_url = wiki_client.get_or_create_page_for_lesson(lesson)
 
-    logger.info('add lesson {lesson} to course {course}'.format(lesson=lesson_url, course=course_url))
+    logger.info('add section {section} to course {course}'.format(section=section_url,
+                                                                  course=course_url))
 
+    section_page_title = SECTION_PAGE_TITLE_TEMPLATE.format(title=section['title'], id=section['id'])
     course_page_title = COURSE_PAGE_TITLE_TEMPLATE.format(title=course['title'], id=course['id'])
-    lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
 
-    course_link = '[[{}]]'.format(course_page_title)
+    section_categories = wiki_client.get_page_categories(section_page_title)
+    if course_page_title not in section_categories:
+        course_link = '[[{title}|{position:>3}]]'.format(title=course_page_title,
+                                                         position=section['position'])
+        wiki_client.add_text_to_page(page_title=section_page_title,
+                                     text=course_link,
+                                     summary='add section to course')
+
+
+def add_lesson_to_section(lesson, lesson_position, section):
+    wiki_client = get_wiki_client()
+
+    lesson_url = wiki_client.get_or_create_page_for_lesson(lesson)
+    section_url = wiki_client.get_or_create_page_for_section(section)
+
+    logger.info('add lesson {lesson} to section {section}'.format(lesson=lesson_url,
+                                                                  section=section_url))
+
+    lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
+    section_page_title = SECTION_PAGE_TITLE_TEMPLATE.format(title=section['title'], id=section['id'])
+
     lesson_categories = wiki_client.get_page_categories(lesson_page_title)
-    if course_page_title not in lesson_categories:
-        wiki_client.add_text_to_page(lesson_page_title, course_link, 'add lesson to course')
+    if section_page_title not in lesson_categories:
+        section_link = '[[{title}|{position:>3}]]'.format(title=section_page_title,
+                                                          position=lesson_position)
+        wiki_client.add_text_to_page(page_title=lesson_page_title,
+                                     text=section_link,
+                                     summary='add lesson to section')
 
 
 def validate_synopsis_request(data):

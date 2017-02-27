@@ -6,7 +6,7 @@ import requests
 from tornado.testing import AsyncHTTPTestCase
 
 from constants import ContentType, SynopsisType
-from utils import save_synopsis_to_wiki
+from utils import save_synopsis_for_lesson_to_wiki
 from webserver import make_app
 
 app = make_app()
@@ -73,7 +73,7 @@ class FunctionalTest(AsyncHTTPTestCase):
         args = new_save_synopsis_to_wiki.call_args[1]
         synopsis = args['synopsis']
 
-        result = save_synopsis_to_wiki(synopsis=synopsis)
+        result = save_synopsis_for_lesson_to_wiki(synopsis=synopsis)
 
         self.assertEquals(real_lesson_id, result['wiki_url_lesson']['lesson']['id'])
 
