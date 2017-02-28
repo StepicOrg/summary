@@ -279,7 +279,7 @@ class AudioRecognition(object):
             response = self.session.post(url=url,
                                          data=chunk,
                                          headers={'Content-Type': 'audio/x-mpeg-3'})
-            if not response.status_code:
+            if not response:
                 raise CreateSynopsisError('Failed to recognize audio, status code: {status_code}'
                                           .format(status_code=response.status_code))
 
