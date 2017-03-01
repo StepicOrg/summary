@@ -8,6 +8,8 @@ import numpy as np
 import peakutils
 import requests
 from pydub import AudioSegment
+from requests.packages.urllib3 import Retry
+from requests.adapters import HTTPAdapter
 
 from constants import (TIME_BETWEEN_KEYFRAMES, FRAME_PERIOD, BOTTOM_LINE_COEF, SCALE_FACTOR,
                        THRESHOLD_FOR_PEAKS_DETECTION, MAX_KEYFRAME_PER_SEC, THRESHOLD_DELTA,
@@ -237,11 +239,17 @@ class AudioRecognition(object):
     _audio_segment = None
     yandex_speech_kit_key = None
     lang = None
+    session = None
 
     def __init__(self, file, yandex_speech_kit_key, lang='ru-RU'):
         self._audio_segment = AudioSegment.from_file(file)
         self.yandex_speech_kit_key = yandex_speech_kit_key
         self.lang = lang
+        self.session = requests.session()
+        retries = Retry(total=5,
+                        backoff_factor=0.2,
+                        status_forcelist=[500, 502, 503, 504])
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
 
     def chunks(self):
         arr = [x if not math.isinf(x) else 0 for x in
@@ -268,10 +276,10 @@ class AudioRecognition(object):
         for start, end, chunk in self.chunks():
             url = YANDEX_SPEECH_KIT_REQUEST_URL.format(key=self.yandex_speech_kit_key,
                                                        lang=self.lang)
-            response = requests.post(url=url,
-                                     data=chunk,
-                                     headers={'Content-Type': 'audio/x-mpeg-3'})
-            if response.status_code != 200:
+            response = self.session.post(url=url,
+                                         data=chunk,
+                                         headers={'Content-Type': 'audio/x-mpeg-3'})
+            if not response:
                 raise CreateSynopsisError('Failed to recognize audio, status code: {status_code}'
                                           .format(status_code=response.status_code))
 
