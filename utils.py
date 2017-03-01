@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import re
 import subprocess
 import tempfile
 
@@ -18,7 +19,8 @@ from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFM
                        STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE, ContentType,
                        SynopsisType, COURSE_PAGE_TITLE_TEMPLATE, COURSE_PAGE_TEXT_TEMPLATE,
                        COURSE_PAGE_SUMMARY_TEMPLATE, SECTION_PAGE_TITLE_TEMPLATE, SECTION_PAGE_TEXT_TEMPLATE,
-                       SECTION_PAGE_SUMMARY_TEMPLATE)
+                       SECTION_PAGE_SUMMARY_TEMPLATE, SINGLE_DOLLAR_TO_MATH_PATTERN, SINGLE_DOLLAR_TO_MATH_REPLACE,
+                       DOUBLE_DOLLAR_TO_MATH_PATTERN, DOUBLE_DOLLAR_TO_MATH_REPLACE)
 from exceptions import CreateSynopsisError
 from recognize import VideoRecognition, AudioRecognition
 
@@ -350,7 +352,15 @@ class WikiClient(object):
         result = []
         for item in content:
             if item['type'] == ContentType.TEXT:
-                result.append(pypandoc.convert_text(item['content'], format='html', to='mediawiki'))
+                text = pypandoc.convert_text(item['content'], format='html', to='mediawiki')
+
+                # replace $latex$ to <math>latex</math>
+                text = re.sub(SINGLE_DOLLAR_TO_MATH_PATTERN, SINGLE_DOLLAR_TO_MATH_REPLACE, text)
+
+                # replace $$latex$$ to <math>latex</math>
+                text = re.sub(DOUBLE_DOLLAR_TO_MATH_PATTERN, DOUBLE_DOLLAR_TO_MATH_REPLACE, text)
+
+                result.append(text)
             elif item['type'] == ContentType.IMG:
                 result.append('<img width="50%" src="{}">'.format(item['content']))
         return '\n\n'.join(result)

@@ -1,11 +1,15 @@
 import json
 import os
+from unittest import TestCase
 from unittest.mock import patch
 
+import re
 import requests
 from tornado.testing import AsyncHTTPTestCase
 
-from constants import ContentType, SynopsisType
+from constants import (ContentType, SynopsisType, SINGLE_DOLLAR_TO_MATH_PATTERN,
+                       SINGLE_DOLLAR_TO_MATH_REPLACE, DOUBLE_DOLLAR_TO_MATH_PATTERN,
+                       DOUBLE_DOLLAR_TO_MATH_REPLACE)
 from utils import save_synopsis_for_lesson_to_wiki
 from webserver import make_app
 
@@ -91,3 +95,122 @@ class FunctionalTest(AsyncHTTPTestCase):
         step_page = requests.get(url=step_wiki_url)
         self.assertEquals(200, step_page.status_code)
         self.assertIn('Байки о сложности C++', step_page.text)
+
+
+class RegexTest(TestCase):
+    def check_all_regex_cases(self, cases, pattern, replace):
+        for case in cases:
+            result = re.sub(pattern, replace, case['text'])
+            self.assertEqual(result, case['result'])
+
+    def test_single_dollar_regex(self):
+        cases = [
+            {
+                'text': '$x$',
+                'result': '<math>x</math>'
+            },
+            {
+                'text': '$x$ $y$',
+                'result': '<math>x</math> <math>y</math>'
+            },
+            {
+                'text': '$x$ $y$ $z$',
+                'result': '<math>x</math> <math>y</math> <math>z</math>'
+            },
+            {
+                'text': '$ x \$ y $',
+                'result': '<math> x \$ y </math>'
+            },
+            {
+                'text': '$ x $ y $',
+                'result': '<math> x </math> y $'
+            },
+            {
+                'text': '$$x$$',
+                'result': '$$x$$'
+            },
+            {
+                'text': '$$x$$ $$y$$',
+                'result': '$$x$$ $$y$$'
+            },
+            {
+                'text': '$x$$y$',
+                'result': '$x$$y$'
+            },
+            {
+                'text': '$$x$',
+                'result': '$$x$'
+            },
+            {
+                'text': '$x$$',
+                'result': '$x$$'
+            },
+            {
+                'text': '\$x$',
+                'result': '\$x$'
+            },
+            {
+                'text': '$x\$',
+                'result': '$x\$'
+            },
+        ]
+
+        self.check_all_regex_cases(cases=cases,
+                                   pattern=SINGLE_DOLLAR_TO_MATH_PATTERN,
+                                   replace=SINGLE_DOLLAR_TO_MATH_REPLACE)
+
+    def test_double_dollar_regex(self):
+        cases = [
+            {
+                'text': '$$x$$',
+                'result': '\n\n<math>x</math>\n\n'
+            },
+            {
+                'text': '$$x$$ $$y$$',
+                'result': '\n\n<math>x</math>\n\n \n\n<math>y</math>\n\n'
+            },
+            {
+                'text': '$$x$$ $$y$$ $$z$$',
+                'result': '\n\n<math>x</math>\n\n \n\n<math>y</math>\n\n \n\n<math>z</math>\n\n'
+            },
+            {
+                'text': '$$ x \$ y $$',
+                'result': '\n\n<math> x \$ y </math>\n\n'
+            },
+            {
+                'text': '$$ x $$ y $$',
+                'result': '\n\n<math> x </math>\n\n y $$'
+            },
+            {
+                'text': '$$x$$$$y$$',
+                'result': '$$x$$$$y$$'
+            },
+            {
+                'text': '$$$x$$',
+                'result': '$$$x$$'
+            },
+            {
+                'text': '$$x$$$',
+                'result': '$$x$$$'
+            },
+            {
+                'text': '\$$x$$',
+                'result': '\$$x$$'
+            },
+            {
+                'text': '$\$x$$',
+                'result': '$\$x$$'
+            },
+            {
+                'text': '$$x\$$',
+                'result': '$$x\$$'
+            },
+            {
+                'text': '$$x$\$',
+                'result': '$$x$\$'
+            },
+        ]
+
+        self.check_all_regex_cases(cases=cases,
+                                   pattern=DOUBLE_DOLLAR_TO_MATH_PATTERN,
+                                   replace=DOUBLE_DOLLAR_TO_MATH_REPLACE)
