@@ -226,9 +226,11 @@ class WikiClient(object):
 
     def get_or_create_page_for_step(self, lesson, step, content):
         lesson_page_title = LESSON_PAGE_TITLE_TEMPLATE.format(title=lesson['title'], id=lesson['id'])
-        text = STEP_PAGE_TEXT_TEMPLATE.format(content=self._prepare_content(content),
+        text = STEP_PAGE_TEXT_TEMPLATE.format(stepik_base=settings.STEPIK_BASE_URL,
+                                              content=self._prepare_content(content),
+                                              position=step['position'],
                                               lesson=lesson_page_title,
-                                              position=step['position'])
+                                              lesson_id=lesson['id'])
         title = STEP_PAGE_TITLE_TEMPLATE.format(position=step['position'], id=step['id'])
         summary = STEP_PAGE_SUMMARY_TEMPLATE.format(id=step['id'])
 

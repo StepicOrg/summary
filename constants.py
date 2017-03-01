@@ -46,7 +46,7 @@ class SynopsisType(object):
 
     ALL_TYPES = (STEP, LESSON, SECTION, COURSE)
 
-COURSE_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
+COURSE_PAGE_TITLE_TEMPLATE = "Category:{title} (C-{id})"
 COURSE_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                               Page for course "{title}" with id = {id}
 
@@ -57,16 +57,16 @@ COURSE_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                               """)
 COURSE_PAGE_SUMMARY_TEMPLATE = 'Create page for course id={id}'
 
-SECTION_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
+SECTION_PAGE_TITLE_TEMPLATE = "Category:{title} (M-{id})"
 SECTION_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                               Page for module "{title}" with id = {id}
 
                               {{{{#categorytree:{{{{PAGENAME}}}}}}}}
-                              [[Category:Sections]]
+                              [[Category:Modules]]
                               """)
 SECTION_PAGE_SUMMARY_TEMPLATE = 'Create page for section id={id}'
 
-LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} ({id})"
+LESSON_PAGE_TITLE_TEMPLATE = "Category:{title} (L-{id})"
 LESSON_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                               Page for lesson "{title}" with id = {id}
 
@@ -77,8 +77,10 @@ LESSON_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
                               """)
 LESSON_PAGE_SUMMARY_TEMPLATE = 'Create page for lesson id={id}'
 
-STEP_PAGE_TITLE_TEMPLATE = 'Step {position} ({id})'
+STEP_PAGE_TITLE_TEMPLATE = 'Step {position} (S-{id})'
 STEP_PAGE_TEXT_TEMPLATE = textwrap.dedent("""\
+                            Step on Stepik: {stepik_base}/lesson/{lesson_id}/step/{position}
+
                             {content}
 
                             [[Category:Steps]]
