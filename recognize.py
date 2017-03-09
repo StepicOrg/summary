@@ -17,6 +17,7 @@ from constants import (TIME_BETWEEN_KEYFRAMES, FRAME_PERIOD, BOTTOM_LINE_COEF, S
                        UPLOADCARE_URL_TO_UPLOAD, MS_IN_SEC, AUDIO_IS_NOT_RECOGNIZED, SEC_IN_MIN,
                        RECOGNIZE_TEXT_TEMPLATE, YANDEX_SPEECH_KIT_REQUEST_URL)
 from exceptions import CreateSynopsisError
+from utils import get_session_with_retries
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +65,7 @@ class VideoRecognition(object):
         self.humans = []
         self.keyframes_src_with_timestamp = []
 
-        self.session = requests.session()
-        retries = Retry(total=5,
-                        backoff_factor=0.2,
-                        status_forcelist=[500, 502, 503, 504])
-        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+        self.session = get_session_with_retries()
 
     def get_keyframes_src_with_timestamp(self):
         self.compute_diffs()
@@ -252,11 +249,7 @@ class AudioRecognition(object):
         self._audio_segment = AudioSegment.from_file(file)
         self.yandex_speech_kit_key = yandex_speech_kit_key
         self.lang = lang
-        self.session = requests.session()
-        retries = Retry(total=5,
-                        backoff_factor=0.2,
-                        status_forcelist=[500, 502, 503, 504])
-        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+        self.session = get_session_with_retries()
 
     def chunks(self):
         arr = [x if not math.isinf(x) else 0 for x in
