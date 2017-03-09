@@ -35,6 +35,7 @@ class VideoRecognition(object):
     frames_between_keyframes = None
     keyframes_src_with_timestamp = None
     uploadcare_pub_key = None
+    session = None
 
     def __init__(self, video_file, uploadcare_pub_key, haar_cascade=None):
         self.uploadcare_pub_key = uploadcare_pub_key
@@ -62,6 +63,12 @@ class VideoRecognition(object):
         self.peaks = []
         self.humans = []
         self.keyframes_src_with_timestamp = []
+
+        self.session = requests.session()
+        retries = Retry(total=5,
+                        backoff_factor=0.2,
+                        status_forcelist=[500, 502, 503, 504])
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
 
     def get_keyframes_src_with_timestamp(self):
         self.compute_diffs()
@@ -198,10 +205,10 @@ class VideoRecognition(object):
 
         image_bytes = io.BytesIO(cv2.imencode('.png', image)[1].tostring())
 
-        response = requests.post(url=UPLOADCARE_URL_TO_UPLOAD,
-                                 files={'file': image_bytes},
-                                 data=data)
-        if response.status_code != 200:
+        response = self.session.post(url=UPLOADCARE_URL_TO_UPLOAD,
+                                     files={'file': image_bytes},
+                                     data=data)
+        if not response:
             raise CreateSynopsisError('Failed to upload image, status code: {status_code}'
                                       .format(status_code=response.status_code))
 
