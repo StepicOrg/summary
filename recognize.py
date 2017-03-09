@@ -6,10 +6,7 @@ from xml.etree import ElementTree
 import cv2
 import numpy as np
 import peakutils
-import requests
 from pydub import AudioSegment
-from requests.packages.urllib3 import Retry
-from requests.adapters import HTTPAdapter
 
 from constants import (TIME_BETWEEN_KEYFRAMES, FRAME_PERIOD, BOTTOM_LINE_COEF, SCALE_FACTOR,
                        THRESHOLD_FOR_PEAKS_DETECTION, MAX_KEYFRAME_PER_SEC, THRESHOLD_DELTA,
