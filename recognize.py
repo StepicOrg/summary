@@ -6,10 +6,7 @@ from xml.etree import ElementTree
 import cv2
 import numpy as np
 import peakutils
-import requests
 from pydub import AudioSegment
-from requests.packages.urllib3 import Retry
-from requests.adapters import HTTPAdapter
 
 from constants import (TIME_BETWEEN_KEYFRAMES, FRAME_PERIOD, BOTTOM_LINE_COEF, SCALE_FACTOR,
                        THRESHOLD_FOR_PEAKS_DETECTION, MAX_KEYFRAME_PER_SEC, THRESHOLD_DELTA,
@@ -17,6 +14,7 @@ from constants import (TIME_BETWEEN_KEYFRAMES, FRAME_PERIOD, BOTTOM_LINE_COEF, S
                        UPLOADCARE_URL_TO_UPLOAD, MS_IN_SEC, AUDIO_IS_NOT_RECOGNIZED, SEC_IN_MIN,
                        RECOGNIZE_TEXT_TEMPLATE, YANDEX_SPEECH_KIT_REQUEST_URL)
 from exceptions import CreateSynopsisError
+from utils import get_session_with_retries
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +33,7 @@ class VideoRecognition(object):
     frames_between_keyframes = None
     keyframes_src_with_timestamp = None
     uploadcare_pub_key = None
+    session = None
 
     def __init__(self, video_file, uploadcare_pub_key, haar_cascade=None):
         self.uploadcare_pub_key = uploadcare_pub_key
@@ -62,6 +61,8 @@ class VideoRecognition(object):
         self.peaks = []
         self.humans = []
         self.keyframes_src_with_timestamp = []
+
+        self.session = get_session_with_retries()
 
     def get_keyframes_src_with_timestamp(self):
         self.compute_diffs()
@@ -198,10 +199,10 @@ class VideoRecognition(object):
 
         image_bytes = io.BytesIO(cv2.imencode('.png', image)[1].tostring())
 
-        response = requests.post(url=UPLOADCARE_URL_TO_UPLOAD,
-                                 files={'file': image_bytes},
-                                 data=data)
-        if response.status_code != 200:
+        response = self.session.post(url=UPLOADCARE_URL_TO_UPLOAD,
+                                     files={'file': image_bytes},
+                                     data=data)
+        if not response:
             raise CreateSynopsisError('Failed to upload image, status code: {status_code}'
                                       .format(status_code=response.status_code))
 
@@ -245,11 +246,7 @@ class AudioRecognition(object):
         self._audio_segment = AudioSegment.from_file(file)
         self.yandex_speech_kit_key = yandex_speech_kit_key
         self.lang = lang
-        self.session = requests.session()
-        retries = Retry(total=5,
-                        backoff_factor=0.2,
-                        status_forcelist=[500, 502, 503, 504])
-        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+        self.session = get_session_with_retries()
 
     def chunks(self):
         arr = [x if not math.isinf(x) else 0 for x in
