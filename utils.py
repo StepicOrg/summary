@@ -457,15 +457,3 @@ def validate_synopsis_request(data):
         return False
 
     return True
-
-
-def get_session_with_retries(number_of_retries=5,
-                             backoff_factor=0.2,
-                             status_forcelist={500, 502, 503, 504},
-                             prefix='https://'):
-    session = requests.session()
-    retries = Retry(total=number_of_retries,
-                    backoff_factor=backoff_factor,
-                    status_forcelist=status_forcelist)
-    session.mount(prefix, HTTPAdapter(max_retries=retries))
-    return session

@@ -35,8 +35,7 @@ class VideoRecognition(object):
     session = None
 
     def __init__(self, video_file, uploadcare_pub_key, haar_cascade=None):
-        from utils import get_session_with_retries
-
+        from recognition.utils import get_session_with_retries
         self.uploadcare_pub_key = uploadcare_pub_key
 
         self.cap = cv2.VideoCapture(video_file)
@@ -244,7 +243,7 @@ class AudioRecognition(object):
     session = None
 
     def __init__(self, file, yandex_speech_kit_key, lang='ru-RU'):
-        from utils import get_session_with_retries
+        from recognition.utils import get_session_with_retries
         self._audio_segment = AudioSegment.from_file(file)
         self.yandex_speech_kit_key = yandex_speech_kit_key
         self.lang = lang
