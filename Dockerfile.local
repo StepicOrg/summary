@@ -29,15 +29,15 @@ RUN apt-get update && \
 WORKDIR /
 
 RUN wget https://github.com/Itseez/opencv/archive/3.1.0.zip \
-	&& unzip 3.1.0.zip \
-	&& rm 3.1.0.zip \
-	&& mkdir opencv-3.1.0/build \
-	&& cd opencv-3.1.0/build \
-	# https://github.com/opencv/opencv/issues/6517
-	&& cmake -DENABLE_PRECOMPILED_HEADERS=OFF .. \
-	&& make -j8 \
-	&& make install \
-	&& rm -rf /opencv-3.1.0
+    && unzip 3.1.0.zip \
+    && rm 3.1.0.zip \
+    && mkdir opencv-3.1.0/build \
+    && cd opencv-3.1.0/build \
+    # https://github.com/opencv/opencv/issues/6517
+    && cmake -DENABLE_PRECOMPILED_HEADERS=OFF .. \
+    && make -j8 \
+    && make install \
+    && rm -rf /opencv-3.1.0
 
 RUN mkdir /home/synopsis
 COPY . /home/synopsis
@@ -50,6 +50,14 @@ RUN apt-get install -y pandoc
 
 RUN apt-get install -y python3-scipy \
     && pip3 install -r /home/synopsis/requirements.txt
+
+RUN wget https://github.com/Breakthrough/PySceneDetect/archive/v0.4.tar.gz \
+    && tar -xzf v0.4.tar.gz \
+    && cd PySceneDetect-0.4 \
+    && python3 setup.py install \
+    && cd ../ \
+    && rm v0.4.tar.gz
+
 
 # SSH
 RUN apt-get install -y openssh-server
