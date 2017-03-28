@@ -9,7 +9,7 @@ from exceptions import CreateSynopsisError
 from .constants import (TIME_BETWEEN_KEYFRAMES, FRAME_PERIOD, BOTTOM_LINE_COEF, SCALE_FACTOR, MIN_SIZE_COEF,
                         THRESHOLD_FOR_PEAKS_DETECTION, MAX_KEYFRAME_PER_SEC, THRESHOLD_DELTA, CENTER_LEFT_BORDER,
                         CENTER_RIGHT_BORDER)
-from .image_uploaders import ImageUploaderBase, Url
+from .image_uploaders import ImageUploaderBase
 
 
 class VideoRecognitionBase(object):
@@ -26,12 +26,12 @@ class VideoRecognitionBase(object):
             raise CreateSynopsisError('VideoRecognition error, wrong video filename "{filename}"'
                                       .format(filename=video_file_path))
 
-    def get_keyframes_src_with_timestamp(self) -> List[Tuple[Url, float]]:
-        keyframe_positions = self._get_keyframes()
+    def get_keyframes_src_with_timestamp(self) -> List[Tuple[str, float]]:
+        keyframe_positions = self.get_keyframes()
         keyframes_src_with_timestamp = self._upload_keyframes(keyframe_positions)
         return keyframes_src_with_timestamp
 
-    def _get_keyframes(self) -> Iterable[int]:
+    def get_keyframes(self) -> List[int]:
         raise NotImplementedError()
 
     def _upload_keyframes(self, keyframe_positions: Iterable[int]) -> List[Tuple[Url, float]]:
@@ -82,10 +82,10 @@ class VideoRecognitionNaive(VideoRecognitionBase):
         self.peaks = []
         self.humans = []
 
-    def _get_keyframes(self) -> Iterable[int]:
+    def get_keyframes(self) -> List[int]:
         self._compute_diffs()
         self._find_peaks()
-        return map(lambda peak: peak * FRAME_PERIOD, self.peaks)
+        return list(map(lambda peak: peak * FRAME_PERIOD, self.peaks))
 
     def _compute_diffs(self):
         old_frame = self._get_next_frame()

@@ -10,9 +10,7 @@ import pypandoc
 import requests
 from mwapi.errors import LoginError, APIError
 from requests import RequestException
-from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
-from requests.packages.urllib3 import Retry
 
 import settings
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
