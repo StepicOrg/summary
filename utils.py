@@ -16,13 +16,18 @@ import settings
 from constants import (VIDEOS_DOWNLOAD_CHUNK_SIZE, VIDEOS_DOWNLOAD_MAX_SIZE, FFMPEG_EXTRACT_AUDIO,
                        LESSON_PAGE_TITLE_TEMPLATE, LESSON_PAGE_TEXT_TEMPLATE,
                        STEP_PAGE_TITLE_TEMPLATE, STEP_PAGE_TEXT_TEMPLATE,
-                       STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE, ContentType,
+                       STEP_PAGE_SUMMARY_TEMPLATE, LESSON_PAGE_SUMMARY_TEMPLATE,
                        SynopsisType, COURSE_PAGE_TITLE_TEMPLATE, COURSE_PAGE_TEXT_TEMPLATE,
                        COURSE_PAGE_SUMMARY_TEMPLATE, SECTION_PAGE_TITLE_TEMPLATE, SECTION_PAGE_TEXT_TEMPLATE,
                        SECTION_PAGE_SUMMARY_TEMPLATE, SINGLE_DOLLAR_TO_MATH_PATTERN, SINGLE_DOLLAR_TO_MATH_REPLACE,
                        DOUBLE_DOLLAR_TO_MATH_PATTERN, DOUBLE_DOLLAR_TO_MATH_REPLACE)
 from exceptions import CreateSynopsisError
-from recognize import VideoRecognition, AudioRecognition
+from recognition.audio.constants import Language
+from recognition.audio.recognizers import AudioRecognitionYandex
+from recognition.constants import ContentType
+from recognition.video.image_uploaders import ImageUploaderUploadcare
+from recognition.video.recognizers import VideoRecognitionNaive
+from recognition.utils import merge_audio_and_video
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -44,55 +49,6 @@ def get_wiki_client():
     if _wiki_client is None:
         _wiki_client = WikiClient(settings.WIKI_LOGIN, settings.WIKI_PASSWORD)
     return _wiki_client
-
-
-def merge_audio_and_video(keyframes, recognized_audio):
-    frames_ptr = 0
-    audio_ptr = 0
-
-    content = []
-
-    last_time = 0
-    for keyframe in keyframes:
-        last_time, keyframe[1] = keyframe[1], last_time
-
-    while frames_ptr < len(keyframes) and audio_ptr < len(recognized_audio):
-        if keyframes[frames_ptr][1] <= recognized_audio[audio_ptr][0]:
-            content.append(
-                {
-                    'type': ContentType.IMG,
-                    'content': keyframes[frames_ptr][0]
-                }
-            )
-            frames_ptr += 1
-        else:
-            content.append(
-                {
-                    'type': ContentType.TEXT,
-                    'content': recognized_audio[audio_ptr][2]
-                }
-            )
-            audio_ptr += 1
-
-    while frames_ptr < len(keyframes):
-        content.append(
-            {
-                'type': ContentType.IMG,
-                'content': keyframes[frames_ptr][0]
-            }
-        )
-        frames_ptr += 1
-
-    while audio_ptr < len(recognized_audio):
-        content.append(
-            {
-                'type': ContentType.TEXT,
-                'content': recognized_audio[audio_ptr][2]
-            }
-        )
-        audio_ptr += 1
-
-    return content
 
 
 def parse_arguments():
@@ -128,7 +84,7 @@ def parse_arguments():
     return args
 
 
-def make_synopsis_from_video(video, upload_care_pub_key, yandex_speech_kit_key):
+def make_synopsis_from_video(video):
     with tempfile.TemporaryDirectory() as tmpdir:
         videofile = os.path.join(tmpdir, 'tmp.mp4')
 
@@ -150,10 +106,10 @@ def make_synopsis_from_video(video, upload_care_pub_key, yandex_speech_kit_key):
             if not run_shell_command(command):
                 raise CreateSynopsisError(command)
 
-            ar = AudioRecognition(out_audio, yandex_speech_kit_key)
+            ar = AudioRecognitionYandex(out_audio, Language.RUSSIAN)
             recognized_audio = ar.recognize()
 
-            vr = VideoRecognition(videofile, upload_care_pub_key)
+            vr = VideoRecognitionNaive(videofile, ImageUploaderUploadcare())
             keyframes_src_with_timestamp = vr.get_keyframes_src_with_timestamp()
 
             content = merge_audio_and_video(keyframes_src_with_timestamp,

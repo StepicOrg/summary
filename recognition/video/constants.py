@@ -12,3 +12,5 @@ MIN_SIZE_COEF = 5
 
 CENTER_LEFT_BORDER = 0.4
 CENTER_RIGHT_BORDER = 0.6
+
+UPLOADCARE_URL_TO_UPLOAD = 'https://upload.uploadcare.com/base/'

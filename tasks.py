@@ -1,9 +1,9 @@
 import concurrent.futures
 import logging
 
-import settings
-from constants import ContentType, SynopsisType, EMPTY_STEP_TEXT
+from constants import SynopsisType, EMPTY_STEP_TEXT
 from exceptions import CreateSynopsisError
+from recognition.constants import ContentType
 from utils import (make_synopsis_from_video, save_synopsis_for_lesson_to_wiki, get_stepik_client,
                    get_wiki_client, add_lesson_to_section, add_section_to_course)
 
@@ -42,6 +42,9 @@ def create_synopsis_task(data):
 
         logger.info('task with args %s completed', data)
     except CreateSynopsisError:
+        logger.exception('task with args %s failed', data)
+        return
+    except:
         logger.exception('task with args %s failed', data)
         return
 
@@ -122,9 +125,7 @@ def create_synopsis_for_step(step):
         ]
     elif block['video']:
         step_type = 'video'
-        content = make_synopsis_from_video(video=block['video'],
-                                           upload_care_pub_key=settings.UPLOAD_CARE_PUB_KEY,
-                                           yandex_speech_kit_key=settings.YANDEX_SPEECH_KIT_KEY)
+        content = make_synopsis_from_video(video=block['video'])
     else:
         step_type = 'empty'
         content = [

@@ -1,8 +1,8 @@
 import io
 
-from constants import UPLOADCARE_URL_TO_UPLOAD
 from exceptions import CreateSynopsisError
 from ..utils import get_session_with_retries
+from .constants import UPLOADCARE_URL_TO_UPLOAD
 from .settings import UPLOAD_CARE_PUB_KEY
 
 

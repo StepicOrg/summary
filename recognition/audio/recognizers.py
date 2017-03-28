@@ -4,6 +4,8 @@ import math
 from typing import List, Tuple
 from xml.etree import ElementTree
 
+from pydub import AudioSegment
+
 from exceptions import CreateSynopsisError
 from .settings import YANDEX_SPEECH_KIT_KEY
 from .constants import (YANDEX_SPEECH_KIT_REQUEST_URL, AUDIO_IS_NOT_RECOGNIZED, MS_IN_SEC, SEC_IN_MIN,
@@ -30,6 +32,7 @@ class AudioRecognitionYandex(AudioRecognitionBase):
 
     def __init__(self, audio_file_path: str, lang: int):
         super().__init__(audio_file_path, lang)
+        self.audio_segment = AudioSegment.from_file(audio_file_path)
 
     def recognize(self) -> List[Tuple[float, float, str]]:
         lang = None

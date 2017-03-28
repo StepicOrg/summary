@@ -19,7 +19,7 @@ def get_session_with_retries(number_of_retries: int = 5,
     return session
 
 
-def merge_audio_and_video(keyframes: List[Tuple[str, float]],
+def merge_audio_and_video(keyframes: List[list],
                           recognized_audio: List[Tuple[float, float, str]]) -> List[Dict]:
     frames_ptr = 0
     audio_ptr = 0

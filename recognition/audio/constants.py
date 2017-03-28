@@ -9,4 +9,3 @@ RECOGNIZE_TEXT_TEMPLATE = '[{min_start:02}:{sec_start:02} - {min_end:02}:{sec_en
 AUDIO_IS_NOT_RECOGNIZED = '* Audio is not recognized *'
 MS_IN_SEC = 1000
 SEC_IN_MIN = 60
-FFMPEG_EXTRACT_AUDIO = 'ffmpeg -loglevel quiet -y -i "{input_video}" -ab 160k -ac 2 -ar 44100 -vn "{output_audio}"'

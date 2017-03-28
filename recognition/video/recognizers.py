@@ -1,5 +1,5 @@
 import io
-from typing import Iterable, Tuple, List
+from typing import Iterable, List
 
 import cv2
 import numpy as np
@@ -26,7 +26,7 @@ class VideoRecognitionBase(object):
             raise CreateSynopsisError('VideoRecognition error, wrong video filename "{filename}"'
                                       .format(filename=video_file_path))
 
-    def get_keyframes_src_with_timestamp(self) -> List[Tuple[str, float]]:
+    def get_keyframes_src_with_timestamp(self) -> List[list]:
         keyframe_positions = self.get_keyframes()
         keyframes_src_with_timestamp = self._upload_keyframes(keyframe_positions)
         return keyframes_src_with_timestamp
@@ -34,22 +34,23 @@ class VideoRecognitionBase(object):
     def get_keyframes(self) -> List[int]:
         raise NotImplementedError()
 
-    def _upload_keyframes(self, keyframe_positions: Iterable[int]) -> List[Tuple[Url, float]]:
-        frame_ptr = 0
-        self.cap.set(cv2.CAP_PROP_POS_AVI_RATIO, frame_ptr)
+    def _upload_keyframes(self, keyframe_positions: Iterable[int]) -> List[list]:
+        self.cap.set(cv2.CAP_PROP_POS_AVI_RATIO, 0)
 
+        frame_ptr = 0
+        _, frame = self.cap.read()
         keyframe_positions = sorted(keyframe_positions)
         keyframes_src_with_timestamp = []
         for keyframe_position in keyframe_positions:
-            while self.cap.isOpened():
+            while self.cap.isOpened() and frame_ptr != keyframe_position:
                 ret, frame = self.cap.read()
+                frame_ptr += 1
                 if not ret:
                     raise CreateSynopsisError('Wrong keyframe_position = {}'.format(keyframe_position))
 
-                if frame_ptr == keyframe_position:
-                    image_bytes = io.BytesIO(cv2.imencode('.png', frame)[1].tostring())
-                    image_src = self.image_uploader.upload(image_bytes)
-                    keyframes_src_with_timestamp.append((image_src, keyframe_position / self.fps))
+            image_bytes = io.BytesIO(cv2.imencode('.png', frame)[1].tostring())
+            image_src = self.image_uploader.upload(image_bytes)
+            keyframes_src_with_timestamp.append([image_src, keyframe_position / self.fps])
         return keyframes_src_with_timestamp
 
 
@@ -85,7 +86,7 @@ class VideoRecognitionNaive(VideoRecognitionBase):
     def get_keyframes(self) -> List[int]:
         self._compute_diffs()
         self._find_peaks()
-        return list(map(lambda peak: peak * FRAME_PERIOD, self.peaks))
+        return list(map(lambda peak: max(0, peak * FRAME_PERIOD - int(self.fps)), self.peaks))
 
     def _compute_diffs(self):
         old_frame = self._get_next_frame()
