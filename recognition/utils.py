@@ -1,9 +1,10 @@
-from typing import Iterable, List, Tuple, Dict
+from typing import Iterable, List, Dict
 
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3 import Retry
 
+from .audio.recognizers import RecognizedChunk
 from .constants import ContentType
 
 
@@ -20,7 +21,7 @@ def get_session_with_retries(number_of_retries: int = 5,
 
 
 def merge_audio_and_video(keyframes: List[list],
-                          recognized_audio: List[Tuple[float, float, str]]) -> List[Dict]:
+                          recognized_audio: List[RecognizedChunk]) -> List[Dict]:
     frames_ptr = 0
     audio_ptr = 0
 
@@ -31,7 +32,7 @@ def merge_audio_and_video(keyframes: List[list],
         last_time, keyframe[1] = keyframe[1], last_time
 
     while frames_ptr < len(keyframes) and audio_ptr < len(recognized_audio):
-        if keyframes[frames_ptr][1] <= recognized_audio[audio_ptr][0]:
+        if keyframes[frames_ptr][1] <= recognized_audio[audio_ptr].start:
             content.append(
                 {
                     'type': ContentType.IMG,
@@ -43,7 +44,7 @@ def merge_audio_and_video(keyframes: List[list],
             content.append(
                 {
                     'type': ContentType.TEXT,
-                    'content': recognized_audio[audio_ptr][2]
+                    'content': recognized_audio[audio_ptr].text
                 }
             )
             audio_ptr += 1
@@ -61,7 +62,7 @@ def merge_audio_and_video(keyframes: List[list],
         content.append(
             {
                 'type': ContentType.TEXT,
-                'content': recognized_audio[audio_ptr][2]
+                'content': recognized_audio[audio_ptr].text
             }
         )
         audio_ptr += 1

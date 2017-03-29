@@ -13,10 +13,6 @@ from .image_uploaders import ImageUploaderBase
 
 
 class VideoRecognitionBase(object):
-    image_uploader = None
-    cap = None
-    fps = None
-
     def __init__(self, video_file_path: str, image_uploader: ImageUploaderBase):
         self.image_uploader = image_uploader
         self.cap = cv2.VideoCapture(video_file_path)
@@ -86,7 +82,7 @@ class VideoRecognitionNaive(VideoRecognitionBase):
     def get_keyframes(self) -> List[int]:
         self._compute_diffs()
         self._find_peaks()
-        return list(map(lambda peak: max(0, peak * FRAME_PERIOD - int(self.fps)), self.peaks))
+        return list(map(lambda peak: max(0, peak * FRAME_PERIOD - self.fps), self.peaks))
 
     def _compute_diffs(self):
         old_frame = self._get_next_frame()

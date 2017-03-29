@@ -1,40 +1,37 @@
 import io
 import math
-
-from typing import List, Tuple
+from typing import List, NamedTuple
 from xml.etree import ElementTree
 
 from pydub import AudioSegment
 
 from exceptions import CreateSynopsisError
-from .settings import YANDEX_SPEECH_KIT_KEY
 from .constants import (YANDEX_SPEECH_KIT_REQUEST_URL, AUDIO_IS_NOT_RECOGNIZED, MS_IN_SEC, SEC_IN_MIN,
                         RECOGNIZE_TEXT_TEMPLATE, Language)
-from ..utils import get_session_with_retries
+from .settings import YANDEX_SPEECH_KIT_KEY
+
+RecognizedChunk = NamedTuple('RecognizedChunk', [('start', float), ('end', float), ('text', str)])
 
 
 class AudioRecognitionBase(object):
-    audio_file_path = None
-    lang = None
-    session = None
-
-    def __init__(self, audio_file_path: str, lang: int):
+    def __init__(self, audio_file_path: str, lang: Language):
+        from ..utils import get_session_with_retries
         self.audio_file_path = audio_file_path
         self.lang = lang
         self.session = get_session_with_retries()
 
-    def recognize(self) -> List[Tuple[float, float, str]]:
+    def recognize(self) -> List[RecognizedChunk]:
         raise NotImplementedError()
 
 
 class AudioRecognitionYandex(AudioRecognitionBase):
     audio_segment = None
 
-    def __init__(self, audio_file_path: str, lang: int):
+    def __init__(self, audio_file_path: str, lang: Language):
         super().__init__(audio_file_path, lang)
         self.audio_segment = AudioSegment.from_file(audio_file_path)
 
-    def recognize(self) -> List[Tuple[float, float, str]]:
+    def recognize(self) -> List[RecognizedChunk]:
         lang = None
         if self.lang == Language.RUSSIAN:
             lang = 'ru-RU'
@@ -78,7 +75,7 @@ class AudioRecognitionYandex(AudioRecognitionBase):
         yield (ptr, ind, chunk)
 
     @staticmethod
-    def _recognize_text_format(start, end, text):
+    def _recognize_text_format(start, end, text) -> RecognizedChunk:
         min_start, sec_start = divmod(start // MS_IN_SEC, SEC_IN_MIN)
         min_end, sec_end = divmod(end // MS_IN_SEC, SEC_IN_MIN)
 
@@ -88,4 +85,4 @@ class AudioRecognitionYandex(AudioRecognitionBase):
                                               sec_end=sec_end,
                                               text=text)
 
-        return start / MS_IN_SEC, end / MS_IN_SEC, text
+        return RecognizedChunk(start=start/MS_IN_SEC, end=end/MS_IN_SEC, text=text)

@@ -1,4 +1,7 @@
-class Language(object):
+from enum import Enum
+
+
+class Language(Enum):
     RUSSIAN = 0
     ENGLISH = 1
 
