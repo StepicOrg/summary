@@ -7,9 +7,10 @@ import re
 import requests
 from tornado.testing import AsyncHTTPTestCase
 
-from constants import (ContentType, SynopsisType, SINGLE_DOLLAR_TO_MATH_PATTERN,
+from constants import (SynopsisType, SINGLE_DOLLAR_TO_MATH_PATTERN,
                        SINGLE_DOLLAR_TO_MATH_REPLACE, DOUBLE_DOLLAR_TO_MATH_PATTERN,
                        DOUBLE_DOLLAR_TO_MATH_REPLACE)
+from recognition.constants import ContentType
 from utils import save_synopsis_for_lesson_to_wiki
 from webserver import make_app
 
