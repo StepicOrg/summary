@@ -4,6 +4,7 @@ from typing import Iterable, List
 import cv2
 import numpy as np
 import peakutils
+import scenedetect
 
 from exceptions import CreateSynopsisError
 from .constants import (TIME_BETWEEN_KEYFRAMES, FRAME_PERIOD, BOTTOM_LINE_COEF, SCALE_FACTOR, MIN_SIZE_COEF,
@@ -210,3 +211,29 @@ class VideoRecognitionNaive(VideoRecognitionBase):
             x_max = max(lhs.x_max, rhs.x_max)
             w = x_max - x_min
             return VideoRecognitionNaive._Human(x_min=x_min, x_max=x_max, w=w)
+
+
+class VideoRecognitionPySceneDetect(VideoRecognitionBase):
+    def get_keyframes(self) -> List[int]:
+        scene_detectors = scenedetect.detectors.get_available()
+        args = self.Args(detection_method='content')
+
+        scene_manager = scenedetect.manager.SceneManager(args, scene_detectors)
+        scenedetect.detect_scenes(self.cap, scene_manager)
+
+        return scene_manager.scene_list
+
+    class Args(object):
+        def __init__(self, detection_method):
+            self.min_percent = 95
+            self.min_scene_len = 15
+            self.detection_method = detection_method
+            self.threshold = None
+            self.downscale_factor = 1
+            self.frame_skip = 0
+            self.save_images = False
+            self.start_time = None
+            self.end_time = None
+            self.duration = None
+            self.quiet_mode = True
+            self.stats_file = None
