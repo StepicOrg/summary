@@ -8,7 +8,6 @@ from pydub import AudioSegment
 from exceptions import CreateSynopsisError
 from .constants import (YANDEX_SPEECH_KIT_REQUEST_URL, AUDIO_IS_NOT_RECOGNIZED, MS_IN_SEC, SEC_IN_MIN,
                         RECOGNIZE_TEXT_TEMPLATE, Language)
-from .settings import YANDEX_SPEECH_KIT_KEY
 from .types import RecognizedChunk
 
 
@@ -26,9 +25,10 @@ class AudioRecognitionBase(object):
 class AudioRecognitionYandex(AudioRecognitionBase):
     audio_segment = None
 
-    def __init__(self, audio_file_path: str, lang: Language):
+    def __init__(self, audio_file_path: str, lang: Language, key):
         super().__init__(audio_file_path, lang)
         self.audio_segment = AudioSegment.from_file(audio_file_path)
+        self.key = key
 
     def recognize(self) -> List[RecognizedChunk]:
         lang = None
@@ -38,8 +38,7 @@ class AudioRecognitionYandex(AudioRecognitionBase):
             lang = 'en-EN'
         recognized_audio = []
         for start, end, chunk in self._chunks():
-            url = YANDEX_SPEECH_KIT_REQUEST_URL.format(key=YANDEX_SPEECH_KIT_KEY,
-                                                       lang=lang)
+            url = YANDEX_SPEECH_KIT_REQUEST_URL.format(key=self.key, lang=lang)
             response = self.session.post(url=url,
                                          data=chunk,
                                          headers={'Content-Type': 'audio/x-mpeg-3'})

@@ -106,10 +106,15 @@ def make_synopsis_from_video(video):
             if not run_shell_command(command):
                 raise CreateSynopsisError(command)
 
-            ar = AudioRecognitionYandex(out_audio, Language.RUSSIAN)
+            ar = AudioRecognitionYandex(audio_file_path=out_audio,
+                                        lang=Language.RUSSIAN,
+                                        key=settings.YANDEX_SPEECH_KIT_KEY)
+
             recognized_audio = ar.recognize()
 
-            vr = VideoRecognitionNaive(videofile, ImageSaverUploadcare())
+            uploadcare_saver = ImageSaverUploadcare(pub_key=settings.UPLOAD_CARE_PUB_KEY)
+            vr = VideoRecognitionNaive(video_file_path=videofile,
+                                       image_saver=uploadcare_saver)
             keyframes_src_with_timestamp = vr.get_keyframes_src_with_timestamp()
 
             content = merge_audio_and_video(keyframes_src_with_timestamp,

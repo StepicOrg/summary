@@ -1,6 +1,7 @@
 import io
 
 from exceptions import CreateSynopsisError
+from .constants import UPLOADCARE_URL_TO_UPLOAD
 from ..utils import get_session_with_retries
 
 
@@ -10,16 +11,14 @@ class ImageSaverBase(object):
 
 
 class ImageSaverUploadcare(ImageSaverBase):
-    def __init__(self):
+    def __init__(self, pub_key):
         super(self).__init__()
         self.session = get_session_with_retries()
+        self.pub_key = pub_key
 
     def save(self, image: io.BytesIO, position: int) -> str:
-        from .constants import UPLOADCARE_URL_TO_UPLOAD
-        from .settings import UPLOAD_CARE_PUB_KEY
-
         data = {
-            'UPLOADCARE_PUB_KEY': UPLOAD_CARE_PUB_KEY,
+            'UPLOADCARE_PUB_KEY': self.pub_key,
             'UPLOADCARE_STORE': 1
         }
 
