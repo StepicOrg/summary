@@ -4,7 +4,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3 import Retry
 
-from .audio.recognizers import RecognizedChunk
+from .audio.types import RecognizedChunk
 from .constants import ContentType
 
 

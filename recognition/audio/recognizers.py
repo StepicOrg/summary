@@ -1,6 +1,6 @@
 import io
 import math
-from typing import List, NamedTuple
+from typing import List
 from xml.etree import ElementTree
 
 from pydub import AudioSegment
@@ -9,8 +9,7 @@ from exceptions import CreateSynopsisError
 from .constants import (YANDEX_SPEECH_KIT_REQUEST_URL, AUDIO_IS_NOT_RECOGNIZED, MS_IN_SEC, SEC_IN_MIN,
                         RECOGNIZE_TEXT_TEMPLATE, Language)
 from .settings import YANDEX_SPEECH_KIT_KEY
-
-RecognizedChunk = NamedTuple('RecognizedChunk', [('start', float), ('end', float), ('text', str)])
+from .types import RecognizedChunk
 
 
 class AudioRecognitionBase(object):

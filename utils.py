@@ -25,7 +25,7 @@ from exceptions import CreateSynopsisError
 from recognition.audio.constants import Language
 from recognition.audio.recognizers import AudioRecognitionYandex
 from recognition.constants import ContentType
-from recognition.video.image_uploaders import ImageUploaderUploadcare
+from recognition.video.image_uploaders import ImageSaverUploadcare
 from recognition.video.recognizers import VideoRecognitionNaive
 from recognition.utils import merge_audio_and_video
 
@@ -109,7 +109,7 @@ def make_synopsis_from_video(video):
             ar = AudioRecognitionYandex(out_audio, Language.RUSSIAN)
             recognized_audio = ar.recognize()
 
-            vr = VideoRecognitionNaive(videofile, ImageUploaderUploadcare())
+            vr = VideoRecognitionNaive(videofile, ImageSaverUploadcare())
             keyframes_src_with_timestamp = vr.get_keyframes_src_with_timestamp()
 
             content = merge_audio_and_video(keyframes_src_with_timestamp,

@@ -10,12 +10,12 @@ from exceptions import CreateSynopsisError
 from .constants import (TIME_BETWEEN_KEYFRAMES, FRAME_PERIOD, BOTTOM_LINE_COEF, SCALE_FACTOR, MIN_SIZE_COEF,
                         THRESHOLD_FOR_PEAKS_DETECTION, MAX_KEYFRAME_PER_SEC, THRESHOLD_DELTA, CENTER_LEFT_BORDER,
                         CENTER_RIGHT_BORDER)
-from .image_uploaders import ImageUploaderBase
+from .image_uploaders import ImageSaverBase
 
 
 class VideoRecognitionBase(object):
-    def __init__(self, video_file_path: str, image_uploader: ImageUploaderBase):
-        self.image_uploader = image_uploader
+    def __init__(self, video_file_path: str, image_saver: ImageSaverBase = None):
+        self.image_saver = image_saver
         self.cap = cv2.VideoCapture(video_file_path)
         self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
 
@@ -25,13 +25,13 @@ class VideoRecognitionBase(object):
 
     def get_keyframes_src_with_timestamp(self) -> List[list]:
         keyframe_positions = self.get_keyframes()
-        keyframes_src_with_timestamp = self._upload_keyframes(keyframe_positions)
+        keyframes_src_with_timestamp = self._save_keyframes(keyframe_positions)
         return keyframes_src_with_timestamp
 
     def get_keyframes(self) -> List[int]:
         raise NotImplementedError()
 
-    def _upload_keyframes(self, keyframe_positions: Iterable[int]) -> List[list]:
+    def _save_keyframes(self, keyframe_positions: Iterable[int]) -> List[list]:
         self.cap.set(cv2.CAP_PROP_POS_AVI_RATIO, 0)
 
         frame_ptr = 0
@@ -46,7 +46,7 @@ class VideoRecognitionBase(object):
                     raise CreateSynopsisError('Wrong keyframe_position = {}'.format(keyframe_position))
 
             image_bytes = io.BytesIO(cv2.imencode('.png', frame)[1].tostring())
-            image_src = self.image_uploader.upload(image_bytes)
+            image_src = self.image_saver.save(image_bytes, keyframe_position)
             keyframes_src_with_timestamp.append([image_src, keyframe_position / self.fps])
         return keyframes_src_with_timestamp
 
@@ -61,8 +61,8 @@ class VideoRecognitionNaive(VideoRecognitionBase):
     shape = None
     frames_between_keyframes = None
 
-    def __init__(self, video_file_path: str, image_uploader: ImageUploaderBase):
-        super().__init__(video_file_path, image_uploader)
+    def __init__(self, video_file_path: str, image_saver: ImageSaverBase = None):
+        super().__init__(video_file_path, image_saver)
 
         haar_cascade = '/home/synopsis/recognition/video/static/HS.xml'
         self.cascade = cv2.CascadeClassifier(haar_cascade)
