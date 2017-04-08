@@ -25,13 +25,13 @@ class VideoRecognitionBase(object):
 
     def get_keyframes_src_with_timestamp(self) -> List[list]:
         keyframe_positions = self.get_keyframes()
-        keyframes_src_with_timestamp = self._save_keyframes(keyframe_positions)
+        keyframes_src_with_timestamp = self.save_keyframes(keyframe_positions)
         return keyframes_src_with_timestamp
 
     def get_keyframes(self) -> List[int]:
         raise NotImplementedError()
 
-    def _save_keyframes(self, keyframe_positions: Iterable[int]) -> List[list]:
+    def save_keyframes(self, keyframe_positions: Iterable[int]) -> List[list]:
         self.cap.set(cv2.CAP_PROP_POS_AVI_RATIO, 0)
 
         frame_ptr = 0
@@ -83,7 +83,7 @@ class VideoRecognitionNaive(VideoRecognitionBase):
     def get_keyframes(self) -> List[int]:
         self._compute_diffs()
         self._find_peaks()
-        return list(map(lambda peak: max(0, peak * FRAME_PERIOD - self.fps), self.peaks))
+        return list(map(lambda peak: int(max(1, peak * FRAME_PERIOD - self.fps)), self.peaks))
 
     def _compute_diffs(self):
         old_frame = self._get_next_frame()
@@ -221,7 +221,13 @@ class VideoRecognitionPySceneDetect(VideoRecognitionBase):
         scene_manager = scenedetect.manager.SceneManager(args, scene_detectors)
         scenedetect.detect_scenes(self.cap, scene_manager)
 
-        return scene_manager.scene_list
+        result = scene_manager.scene_list
+        if len(result) == 0:
+            result.append(int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT)))
+
+        result = list(map(lambda item: max(1, item - self.fps), result))
+
+        return result
 
     class Args(object):
         def __init__(self, detection_method):
