@@ -1,25 +1,24 @@
 import io
 
 from exceptions import CreateSynopsisError
-from ..utils import get_session_with_retries
 from .constants import UPLOADCARE_URL_TO_UPLOAD
-from .settings import UPLOAD_CARE_PUB_KEY
+from ..utils import get_session_with_retries
 
 
-class ImageUploaderBase(object):
-    session = None
-
-    def __init__(self):
-        self.session = get_session_with_retries()
-
-    def upload(self, image: io.BytesIO) -> str:
+class ImageSaverBase(object):
+    def save(self, image: io.BytesIO, position: int) -> str:
         raise NotImplementedError()
 
 
-class ImageUploaderUploadcare(ImageUploaderBase):
-    def upload(self, image: io.BytesIO) -> str:
+class ImageSaverUploadcare(ImageSaverBase):
+    def __init__(self, pub_key):
+        super(self).__init__()
+        self.session = get_session_with_retries()
+        self.pub_key = pub_key
+
+    def save(self, image: io.BytesIO, position: int) -> str:
         data = {
-            'UPLOADCARE_PUB_KEY': UPLOAD_CARE_PUB_KEY,
+            'UPLOADCARE_PUB_KEY': self.pub_key,
             'UPLOADCARE_STORE': 1
         }
 
@@ -32,3 +31,15 @@ class ImageUploaderUploadcare(ImageUploaderBase):
                                       .format(status_code=response.status_code))
 
         return 'https://ucarecdn.com/{uuid}/'.format(uuid=response.json()['file'])
+
+
+class ImageSaverLocal(ImageSaverBase):
+    def __init__(self, base_path):
+        super().__init__()
+        self.base_path = base_path
+
+    def save(self, image: io.BytesIO, position: int) -> str:
+        filename = '{}/{}.png'.format(self.base_path, position)
+        with open(filename, 'wb') as file:
+            file.write(image.getvalue())
+        return filename
