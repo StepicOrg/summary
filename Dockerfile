@@ -23,6 +23,7 @@ RUN apt-get update && \
     libpng-dev \
     libjasper-dev \
     libavformat-dev \
+    libboost-all-dev \
     && apt-get -y clean all \
     && rm -rf /var/lib/apt/lists/*
 

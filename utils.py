@@ -25,9 +25,9 @@ from exceptions import CreateSynopsisError
 from recognition.audio.constants import Language
 from recognition.audio.recognizers import AudioRecognitionYandex
 from recognition.constants import ContentType
-from recognition.video.image_uploaders import ImageSaverUploadcare
-from recognition.video.recognizers import VideoRecognitionNaive
 from recognition.utils import merge_audio_and_video
+from recognition.video.image_uploaders import ImageSaverUploadcare
+from recognition.video.recognizers import VideoRecognitionCells
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -113,7 +113,7 @@ def make_synopsis_from_video(video):
             recognized_audio = ar.recognize()
 
             uploadcare_saver = ImageSaverUploadcare(pub_key=settings.UPLOAD_CARE_PUB_KEY)
-            vr = VideoRecognitionNaive(video_file_path=videofile,
+            vr = VideoRecognitionCells(video_file_path=videofile,
                                        image_saver=uploadcare_saver)
             keyframes_src_with_timestamp = vr.get_keyframes_src_with_timestamp()
 
