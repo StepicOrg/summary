@@ -12,7 +12,7 @@ class ImageSaverBase(object):
 
 class ImageSaverUploadcare(ImageSaverBase):
     def __init__(self, pub_key):
-        super(self).__init__()
+        super().__init__()
         self.session = get_session_with_retries()
         self.pub_key = pub_key
 
